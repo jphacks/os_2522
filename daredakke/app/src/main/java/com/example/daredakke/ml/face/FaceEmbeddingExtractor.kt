@@ -23,11 +23,11 @@ import kotlin.math.sqrt
 class FaceEmbeddingExtractor(private val context: Context) {
     
     companion object {
-        private const val MODEL_FILE_NAME = "mobilefacenet.tflite"
+        private const val MODEL_FILE_NAME = "models/mobilefacenet.tflite"
         private const val INPUT_SIZE = 112 // 112x112 input
-        private const val EMBEDDING_SIZE = 128 // 128D output
+        private const val EMBEDDING_SIZE = 192 // 128D output
         private const val PIXEL_SIZE = 3 // RGB
-        private const val BATCH_SIZE = 1
+        private const val BATCH_SIZE = 2
     }
     
     private var interpreter: Interpreter? = null
@@ -39,17 +39,26 @@ class FaceEmbeddingExtractor(private val context: Context) {
     suspend fun initialize(): Boolean {
         return try {
             if (isInitialized) return true
-            
+
             // アセットからモデルファイルを読み込み
             val modelBuffer = FileUtil.loadMappedFile(context, MODEL_FILE_NAME)
-            
+
             // Interpreter作成（GPU使用も検討可能）
             val options = Interpreter.Options().apply {
                 setNumThreads(4) // CPU使用時のスレッド数
                 setUseNNAPI(true) // Android Neural Networks API使用
             }
-            
+
             interpreter = Interpreter(modelBuffer, options)
+
+            // モデルの入力形状を確認してログ出力
+            val inputTensor = interpreter!!.getInputTensor(0)
+            val inputShape = inputTensor.shape()
+            val inputDataType = inputTensor.dataType()
+            println("Model input shape: ${inputShape.contentToString()}")
+            println("Model input data type: $inputDataType")
+            println("Expected input size: ${inputShape[1]} x ${inputShape[2]}")
+
             isInitialized = true
             true
         } catch (e: Exception) {
