@@ -2,4 +2,12 @@
 <resources>
 
     <style name="Theme.Daredakke" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- スプラッシュスクリーンの背景色を設定 -->
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <!-- スプラッシュスクリーン後に適用するテーマを指定 -->
+        <item name="postSplashScreenTheme">@style/Theme.Daredakke</item>
+    </style>
+
 </resources>
