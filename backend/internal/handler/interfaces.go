@@ -17,8 +17,8 @@ type PersonServiceInterface interface {
 
 // FaceServiceInterface defines the interface for FaceService
 type FaceServiceInterface interface {
-	AddFace(personID string, file *multipart.FileHeader, note *string) (*models.Face, error)
-	ListFaces(personID string) (*models.FaceList, error)
+	AddFace(personID string, req *models.FaceEmbeddingRequest) (*models.Face, error)
+	ListFaces(personID string, includeEmbedding bool) (*models.FaceList, error)
 	DeleteFace(personID, faceID string) error
 }
 
@@ -30,7 +30,7 @@ type JobServiceInterface interface {
 
 // RecognitionServiceInterface defines the interface for RecognitionService
 type RecognitionServiceInterface interface {
-	Recognize(file *multipart.FileHeader, topK int, minScore float64) (*models.RecognitionResponse, error)
+	Recognize(req *models.RecognitionRequest) (*models.RecognitionResponse, error)
 }
 
 // EncounterServiceInterface defines the interface for EncounterService

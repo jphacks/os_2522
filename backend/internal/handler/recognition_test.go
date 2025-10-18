@@ -2,8 +2,8 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,8 +19,8 @@ type MockRecognitionService struct {
 	mock.Mock
 }
 
-func (m *MockRecognitionService) Recognize(file *multipart.FileHeader, topK int, minScore float64) (*models.RecognitionResponse, error) {
-	args := m.Called(file, topK, minScore)
+func (m *MockRecognitionService) Recognize(req *models.RecognitionRequest) (*models.RecognitionResponse, error) {
+	args := m.Called(req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -30,29 +30,33 @@ func (m *MockRecognitionService) Recognize(file *multipart.FileHeader, topK int,
 func TestRecognitionHandler_PostRecognize(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	// Helper function to create a test embedding
+	createTestEmbedding := func() []float32 {
+		embedding := make([]float32, 512)
+		for i := range embedding {
+			embedding[i] = 0.5
+		}
+		return embedding
+	}
+
 	tests := []struct {
 		name           string
-		queryParams    string
-		setupRequest   func() (*bytes.Buffer, string)
+		requestBody    interface{}
 		mockSetup      func(*MockRecognitionService)
 		expectedStatus int
+		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
 		{
-			name:        "successful recognition - known person",
-			queryParams: "",
-			setupRequest: func() (*bytes.Buffer, string) {
-				body := &bytes.Buffer{}
-				writer := multipart.NewWriter(body)
-				h := make(map[string][]string)
-				h["Content-Disposition"] = []string{`form-data; name="image"; filename="test.jpg"`}
-				h["Content-Type"] = []string{"image/jpeg"}
-				part, _ := writer.CreatePart(h)
-				part.Write([]byte("fake image data"))
-				writer.Close()
-				return body, writer.FormDataContentType()
+			name: "successful recognition - known person",
+			requestBody: models.RecognitionRequest{
+				Embedding:    createTestEmbedding(),
+				EmbeddingDim: 512,
+				ModelVersion: "facenet-tflite-v1",
+				TopK:         3,
+				MinScore:     0.6,
 			},
 			mockSetup: func(m *MockRecognitionService) {
-				m.On("Recognize", mock.AnythingOfType("*multipart.FileHeader"), 3, 0.6).Return(&models.RecognitionResponse{
+				m.On("Recognize", mock.AnythingOfType("*models.RecognitionRequest")).Return(&models.RecognitionResponse{
 					Status: models.RecognitionStatusKnown,
 					BestMatch: &models.RecognitionCandidate{
 						PersonID: "p-123",
@@ -65,23 +69,54 @@ func TestRecognitionHandler_PostRecognize(t *testing.T) {
 				}, nil)
 			},
 			expectedStatus: http.StatusOK,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response models.RecognitionResponse
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Equal(t, models.RecognitionStatusKnown, response.Status)
+				assert.NotNil(t, response.BestMatch)
+				assert.Equal(t, "p-123", response.BestMatch.PersonID)
+				assert.Equal(t, 0.95, response.BestMatch.Score)
+			},
 		},
 		{
-			name:        "successful recognition - unknown person",
-			queryParams: "",
-			setupRequest: func() (*bytes.Buffer, string) {
-				body := &bytes.Buffer{}
-				writer := multipart.NewWriter(body)
-				h := make(map[string][]string)
-				h["Content-Disposition"] = []string{`form-data; name="image"; filename="test.jpg"`}
-				h["Content-Type"] = []string{"image/jpeg"}
-				part, _ := writer.CreatePart(h)
-				part.Write([]byte("fake image data"))
-				writer.Close()
-				return body, writer.FormDataContentType()
+			name: "successful recognition - unknown person",
+			requestBody: models.RecognitionRequest{
+				Embedding:    createTestEmbedding(),
+				EmbeddingDim: 512,
+				ModelVersion: "facenet-tflite-v1",
+				TopK:         3,
+				MinScore:     0.6,
 			},
 			mockSetup: func(m *MockRecognitionService) {
-				m.On("Recognize", mock.AnythingOfType("*multipart.FileHeader"), 3, 0.6).Return(&models.RecognitionResponse{
+				m.On("Recognize", mock.AnythingOfType("*models.RecognitionRequest")).Return(&models.RecognitionResponse{
+					Status:     models.RecognitionStatusUnknown,
+					BestMatch:  nil,
+					Candidates: []models.RecognitionCandidate{},
+				}, nil)
+			},
+			expectedStatus: http.StatusOK,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response models.RecognitionResponse
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Equal(t, models.RecognitionStatusUnknown, response.Status)
+				assert.Nil(t, response.BestMatch)
+			},
+		},
+		{
+			name: "custom top_k and min_score",
+			requestBody: models.RecognitionRequest{
+				Embedding:    createTestEmbedding(),
+				EmbeddingDim: 512,
+				ModelVersion: "facenet-tflite-v1",
+				TopK:         5,
+				MinScore:     0.8,
+			},
+			mockSetup: func(m *MockRecognitionService) {
+				m.On("Recognize", mock.MatchedBy(func(req *models.RecognitionRequest) bool {
+					return req.TopK == 5 && req.MinScore == 0.8
+				})).Return(&models.RecognitionResponse{
 					Status:     models.RecognitionStatusUnknown,
 					BestMatch:  nil,
 					Candidates: []models.RecognitionCandidate{},
@@ -90,131 +125,77 @@ func TestRecognitionHandler_PostRecognize(t *testing.T) {
 			expectedStatus: http.StatusOK,
 		},
 		{
-			name:        "custom top_k and min_score",
-			queryParams: "?top_k=5&min_score=0.8",
-			setupRequest: func() (*bytes.Buffer, string) {
-				body := &bytes.Buffer{}
-				writer := multipart.NewWriter(body)
-				h := make(map[string][]string)
-				h["Content-Disposition"] = []string{`form-data; name="image"; filename="test.jpg"`}
-				h["Content-Type"] = []string{"image/jpeg"}
-				part, _ := writer.CreatePart(h)
-				part.Write([]byte("fake image data"))
-				writer.Close()
-				return body, writer.FormDataContentType()
+			name: "missing embedding field",
+			requestBody: map[string]interface{}{
+				"embedding_dim": 512,
+				"model_version": "facenet-tflite-v1",
+			},
+			mockSetup:      func(m *MockRecognitionService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid embedding dimension - wrong count",
+			requestBody: models.RecognitionRequest{
+				Embedding:    make([]float32, 256), // Wrong size
+				EmbeddingDim: 512,
+				ModelVersion: "facenet-tflite-v1",
+			},
+			mockSetup:      func(m *MockRecognitionService) {},
+			expectedStatus: http.StatusBadRequest, // Gin validation returns 400
+		},
+		{
+			name: "invalid embedding dimension - mismatch",
+			requestBody: models.RecognitionRequest{
+				Embedding:    createTestEmbedding(),
+				EmbeddingDim: 256, // Doesn't match actual size
+				ModelVersion: "facenet-tflite-v1",
+			},
+			mockSetup:      func(m *MockRecognitionService) {},
+			expectedStatus: http.StatusBadRequest, // Gin validation returns 400
+		},
+		{
+			name: "missing model version",
+			requestBody: map[string]interface{}{
+				"embedding":     createTestEmbedding(),
+				"embedding_dim": 512,
+			},
+			mockSetup:      func(m *MockRecognitionService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid JSON",
+			requestBody:    "invalid json",
+			mockSetup:      func(m *MockRecognitionService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "service error",
+			requestBody: models.RecognitionRequest{
+				Embedding:    createTestEmbedding(),
+				EmbeddingDim: 512,
+				ModelVersion: "facenet-tflite-v1",
 			},
 			mockSetup: func(m *MockRecognitionService) {
-				m.On("Recognize", mock.AnythingOfType("*multipart.FileHeader"), 5, 0.8).Return(&models.RecognitionResponse{
-					Status:     models.RecognitionStatusUnknown,
-					BestMatch:  nil,
-					Candidates: []models.RecognitionCandidate{},
-				}, nil)
-			},
-			expectedStatus: http.StatusOK,
-		},
-		{
-			name:        "missing image file",
-			queryParams: "",
-			setupRequest: func() (*bytes.Buffer, string) {
-				body := &bytes.Buffer{}
-				writer := multipart.NewWriter(body)
-				writer.Close()
-				return body, writer.FormDataContentType()
-			},
-			mockSetup:      func(m *MockRecognitionService) {},
-			expectedStatus: http.StatusBadRequest,
-		},
-		{
-			name:        "invalid top_k - too low",
-			queryParams: "?top_k=0",
-			setupRequest: func() (*bytes.Buffer, string) {
-				body := &bytes.Buffer{}
-				writer := multipart.NewWriter(body)
-				part, _ := writer.CreateFormFile("image", "test.jpg")
-				part.Write([]byte("fake image data"))
-				writer.Close()
-				return body, writer.FormDataContentType()
-			},
-			mockSetup:      func(m *MockRecognitionService) {},
-			expectedStatus: http.StatusBadRequest,
-		},
-		{
-			name:        "invalid top_k - too high",
-			queryParams: "?top_k=11",
-			setupRequest: func() (*bytes.Buffer, string) {
-				body := &bytes.Buffer{}
-				writer := multipart.NewWriter(body)
-				part, _ := writer.CreateFormFile("image", "test.jpg")
-				part.Write([]byte("fake image data"))
-				writer.Close()
-				return body, writer.FormDataContentType()
-			},
-			mockSetup:      func(m *MockRecognitionService) {},
-			expectedStatus: http.StatusBadRequest,
-		},
-		{
-			name:        "invalid min_score - negative",
-			queryParams: "?min_score=-0.1",
-			setupRequest: func() (*bytes.Buffer, string) {
-				body := &bytes.Buffer{}
-				writer := multipart.NewWriter(body)
-				part, _ := writer.CreateFormFile("image", "test.jpg")
-				part.Write([]byte("fake image data"))
-				writer.Close()
-				return body, writer.FormDataContentType()
-			},
-			mockSetup:      func(m *MockRecognitionService) {},
-			expectedStatus: http.StatusBadRequest,
-		},
-		{
-			name:        "invalid min_score - too high",
-			queryParams: "?min_score=1.1",
-			setupRequest: func() (*bytes.Buffer, string) {
-				body := &bytes.Buffer{}
-				writer := multipart.NewWriter(body)
-				part, _ := writer.CreateFormFile("image", "test.jpg")
-				part.Write([]byte("fake image data"))
-				writer.Close()
-				return body, writer.FormDataContentType()
-			},
-			mockSetup:      func(m *MockRecognitionService) {},
-			expectedStatus: http.StatusBadRequest,
-		},
-		{
-			name:        "unsupported media type",
-			queryParams: "",
-			setupRequest: func() (*bytes.Buffer, string) {
-				body := &bytes.Buffer{}
-				writer := multipart.NewWriter(body)
-				h := make(map[string][]string)
-				h["Content-Disposition"] = []string{`form-data; name="image"; filename="test.gif"`}
-				h["Content-Type"] = []string{"image/gif"}
-				part, _ := writer.CreatePart(h)
-				part.Write([]byte("fake image data"))
-				writer.Close()
-				return body, writer.FormDataContentType()
-			},
-			mockSetup:      func(m *MockRecognitionService) {},
-			expectedStatus: http.StatusUnsupportedMediaType,
-		},
-		{
-			name:        "service error",
-			queryParams: "",
-			setupRequest: func() (*bytes.Buffer, string) {
-				body := &bytes.Buffer{}
-				writer := multipart.NewWriter(body)
-				h := make(map[string][]string)
-				h["Content-Disposition"] = []string{`form-data; name="image"; filename="test.jpg"`}
-				h["Content-Type"] = []string{"image/jpeg"}
-				part, _ := writer.CreatePart(h)
-				part.Write([]byte("fake image data"))
-				writer.Close()
-				return body, writer.FormDataContentType()
-			},
-			mockSetup: func(m *MockRecognitionService) {
-				m.On("Recognize", mock.AnythingOfType("*multipart.FileHeader"), 3, 0.6).Return(nil, errors.New("database error"))
+				m.On("Recognize", mock.AnythingOfType("*models.RecognitionRequest")).Return(nil, errors.New("database error"))
 			},
 			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "with defaults (TopK and MinScore omitted)",
+			requestBody: models.RecognitionRequest{
+				Embedding:    createTestEmbedding(),
+				EmbeddingDim: 512,
+				ModelVersion: "facenet-tflite-v1",
+				// TopK and MinScore omitted, service should use defaults
+			},
+			mockSetup: func(m *MockRecognitionService) {
+				m.On("Recognize", mock.AnythingOfType("*models.RecognitionRequest")).Return(&models.RecognitionResponse{
+					Status:     models.RecognitionStatusUnknown,
+					BestMatch:  nil,
+					Candidates: []models.RecognitionCandidate{},
+				}, nil)
+			},
+			expectedStatus: http.StatusOK,
 		},
 	}
 
@@ -227,14 +208,25 @@ func TestRecognitionHandler_PostRecognize(t *testing.T) {
 			handler := NewRecognitionHandler(mockService)
 			router.POST("/recognize", handler.PostRecognize)
 
-			body, contentType := tt.setupRequest()
-			req, _ := http.NewRequest(http.MethodPost, "/recognize"+tt.queryParams, body)
-			req.Header.Set("Content-Type", contentType)
+			var body []byte
+			var err error
+			if str, ok := tt.requestBody.(string); ok {
+				body = []byte(str)
+			} else {
+				body, err = json.Marshal(tt.requestBody)
+				assert.NoError(t, err)
+			}
+
+			req, _ := http.NewRequest(http.MethodPost, "/recognize", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
+			if tt.checkResponse != nil {
+				tt.checkResponse(t, w)
+			}
 			mockService.AssertExpectations(t)
 		})
 	}

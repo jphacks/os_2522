@@ -58,6 +58,10 @@ func UnsupportedMediaType(detail string) *AppError {
 	return NewAppError(http.StatusUnsupportedMediaType, "Unsupported Media Type", detail)
 }
 
+func UnprocessableEntity(detail string) *AppError {
+	return NewAppError(http.StatusUnprocessableEntity, "Unprocessable Entity", detail)
+}
+
 func InternalServerError(detail string) *AppError {
 	return NewAppError(http.StatusInternalServerError, "Internal Server Error", detail)
 }

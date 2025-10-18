@@ -2,10 +2,10 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jphacks/os_2522/backend/internal/errors"
+	"github.com/jphacks/os_2522/backend/internal/models"
 )
 
 // RecognitionHandler handles face recognition requests
@@ -18,35 +18,21 @@ func NewRecognitionHandler(recognitionService RecognitionServiceInterface) *Reco
 	return &RecognitionHandler{recognitionService: recognitionService}
 }
 
-// PostRecognize handles POST /recognize
+// PostRecognize handles POST /recognize with embedding-based recognition
 func (h *RecognitionHandler) PostRecognize(c *gin.Context) {
-	topKStr := c.DefaultQuery("top_k", "3")
-	topK, err := strconv.Atoi(topKStr)
-	if err != nil || topK < 1 || topK > 10 {
-		errors.RespondWithError(c, errors.BadRequest("Invalid top_k parameter"))
+	var req models.RecognitionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.RespondWithError(c, errors.BadRequest("Invalid request body: "+err.Error()))
 		return
 	}
 
-	minScoreStr := c.DefaultQuery("min_score", "0.6")
-	minScore, err := strconv.ParseFloat(minScoreStr, 64)
-	if err != nil || minScore < 0 || minScore > 1 {
-		errors.RespondWithError(c, errors.BadRequest("Invalid min_score parameter"))
+	// Validate embedding dimension
+	if len(req.Embedding) != req.EmbeddingDim {
+		errors.RespondWithError(c, errors.UnprocessableEntity("Embedding length does not match embedding_dim"))
 		return
 	}
 
-	file, err := c.FormFile("image")
-	if err != nil {
-		errors.RespondWithError(c, errors.BadRequest("Image file is required"))
-		return
-	}
-
-	contentType := file.Header.Get("Content-Type")
-	if contentType != "image/jpeg" && contentType != "image/png" {
-		errors.RespondWithError(c, errors.UnsupportedMediaType("Only JPEG and PNG images are supported"))
-		return
-	}
-
-	response, err := h.recognitionService.Recognize(file, topK, minScore)
+	response, err := h.recognitionService.Recognize(&req)
 	if err != nil {
 		errors.RespondWithError(c, errors.InternalServerError(err.Error()))
 		return

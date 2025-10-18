@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jphacks/os_2522/backend/internal/errors"
+	"github.com/jphacks/os_2522/backend/internal/models"
 )
 
 // FaceHandler handles face management requests
@@ -17,29 +18,23 @@ func NewFaceHandler(faceService FaceServiceInterface) *FaceHandler {
 	return &FaceHandler{faceService: faceService}
 }
 
-// AddFace handles POST /persons/{person_id}/faces
+// AddFace handles POST /persons/{person_id}/faces with embedding-based face addition
 func (h *FaceHandler) AddFace(c *gin.Context) {
 	personID := c.Param("person_id")
 
-	file, err := c.FormFile("image")
-	if err != nil {
-		errors.RespondWithError(c, errors.BadRequest("Image file is required"))
+	var req models.FaceEmbeddingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.RespondWithError(c, errors.BadRequest("Invalid request body: "+err.Error()))
 		return
 	}
 
-	contentType := file.Header.Get("Content-Type")
-	if contentType != "image/jpeg" && contentType != "image/png" {
-		errors.RespondWithError(c, errors.UnsupportedMediaType("Only JPEG and PNG images are supported"))
+	// Validate embedding dimension
+	if len(req.Embedding) != req.EmbeddingDim {
+		errors.RespondWithError(c, errors.UnprocessableEntity("Embedding length does not match embedding_dim"))
 		return
 	}
 
-	note := c.PostForm("note")
-	var notePtr *string
-	if note != "" {
-		notePtr = &note
-	}
-
-	face, err := h.faceService.AddFace(personID, file, notePtr)
+	face, err := h.faceService.AddFace(personID, &req)
 	if err != nil {
 		if err.Error() == "person not found" {
 			errors.RespondWithError(c, errors.NotFound("Person not found"))
@@ -52,11 +47,12 @@ func (h *FaceHandler) AddFace(c *gin.Context) {
 	c.JSON(http.StatusCreated, face)
 }
 
-// ListFaces handles GET /persons/{person_id}/faces
+// ListFaces handles GET /persons/{person_id}/faces with optional embedding inclusion
 func (h *FaceHandler) ListFaces(c *gin.Context) {
 	personID := c.Param("person_id")
+	includeEmbedding := c.DefaultQuery("include_embedding", "false") == "true"
 
-	faceList, err := h.faceService.ListFaces(personID)
+	faceList, err := h.faceService.ListFaces(personID, includeEmbedding)
 	if err != nil {
 		if err.Error() == "person not found" {
 			errors.RespondWithError(c, errors.NotFound("Person not found"))

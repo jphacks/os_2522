@@ -24,34 +24,20 @@ paths:
 
   /recognize:
     post:
-      summary: 顔画像から人物を照合
+      summary: 顔の特徴量から人物を照合
       description: |
-        画像アップロード（multipart）で既知人物か判定します。
+        クライアント側で生成した顔の特徴量（embedding）を使用して既知人物か判定します。
         `top_k` と `min_score` で結果数・閾値を調整できます。
+        クライアントは事前にML Kit + TensorFlow Lite FaceNetで512次元の特徴量を生成してください。
       operationId: postRecognize
       security:
         - ApiKeyAuth: []
-      parameters:
-        - in: query
-          name: top_k
-          schema: { type: integer, minimum: 1, maximum: 10, default: 3 }
-          description: 上位K件の候補を返す
-        - in: query
-          name: min_score
-          schema: { type: number, format: float, minimum: 0, maximum: 1, default: 0.6 }
-          description: スコア閾値（0-1, 1が完全一致）
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
-              type: object
-              required: [image]
-              properties:
-                image:
-                  type: string
-                  format: binary
-                  description: JPEG/PNGの顔画像
+              $ref: '#/components/schemas/RecognitionRequest'
       responses:
         '200':
           description: 照合結果
@@ -65,8 +51,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
 
   /persons:
     get:
@@ -184,7 +170,10 @@ paths:
 
   /persons/{person_id}/faces:
     post:
-      summary: 顔画像を追加（埋め込み自動生成）
+      summary: 顔の特徴量を追加
+      description: |
+        クライアント側で生成した顔の特徴量（embedding）を人物に紐付けて保存します。
+        クライアントは事前にML Kit + TensorFlow Lite FaceNetで512次元の特徴量を生成してください。
       operationId: addFace
       security:
         - ApiKeyAuth: []
@@ -193,13 +182,9 @@ paths:
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
-              type: object
-              required: [image]
-              properties:
-                image: { type: string, format: binary, description: 顔画像(JPEG/PNG) }
-                note: { type: string, description: 任意メモ }
+              $ref: '#/components/schemas/FaceEmbeddingRequest'
       responses:
         '201':
           description: 作成
@@ -213,6 +198,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
     get:
       summary: 人物に紐づく顔一覧
       operationId: listFaces
@@ -220,6 +207,10 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/PersonId'
+        - in: query
+          name: include_embedding
+          schema: { type: boolean, default: false }
+          description: trueの場合、レスポンスに特徴量（embedding）を含める（クライアント側キャッシュ用）
       responses:
         '200':
           description: 一覧
@@ -406,6 +397,11 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    UnprocessableEntity:
+      description: 処理できないエンティティ（特徴量の次元数不正など）
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
 
   schemas:
     Problem:
@@ -473,7 +469,7 @@ components:
 
     Face:
       type: object
-      required: [face_id, person_id, created_at]
+      required: [face_id, person_id, created_at, embedding_dim]
       properties:
         face_id:
           type: string
@@ -485,10 +481,26 @@ components:
           type: string
           format: uri
           nullable: true
-          description: 画像の取得用URL（署名付きURLなど）
+          description: 画像の取得用URL（署名付きURLなど）※現在は未使用
+        embedding:
+          type: array
+          items: { type: number, format: float }
+          nullable: true
+          description: 顔の特徴量ベクトル（include_embedding=trueの場合のみ含まれる）
         embedding_dim:
           type: integer
           example: 512
+          description: 特徴量の次元数
+        model_version:
+          type: string
+          example: facenet-tflite-v1
+          nullable: true
+          description: 特徴量生成に使用したモデルのバージョン
+        embedding_checksum:
+          type: string
+          example: sha256:abc123...
+          nullable: true
+          description: 特徴量のチェックサム（クライアント側の差分同期用）
         note:
           type: string
           nullable: true
@@ -585,4 +597,64 @@ components:
         summary: { type: string }
         language: { type: string, example: ja }
         duration_sec: { type: number, format: float }
+
+    RecognitionRequest:
+      type: object
+      required: [embedding, embedding_dim, model_version]
+      properties:
+        embedding:
+          type: array
+          items: { type: number, format: float }
+          description: 顔の特徴量ベクトル（512次元のfloat32配列）
+          minItems: 512
+          maxItems: 512
+        embedding_dim:
+          type: integer
+          enum: [512]
+          description: 特徴量の次元数（現在は512のみサポート）
+        model_version:
+          type: string
+          example: facenet-tflite-v1
+          description: 特徴量生成に使用したモデルのバージョン
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 3
+          description: 上位K件の候補を返す
+        min_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.6
+          description: スコア閾値（0-1, 1が完全一致）
+
+    FaceEmbeddingRequest:
+      type: object
+      required: [embedding, embedding_dim, model_version]
+      properties:
+        embedding:
+          type: array
+          items: { type: number, format: float }
+          description: 顔の特徴量ベクトル（512次元のfloat32配列）
+          minItems: 512
+          maxItems: 512
+        embedding_dim:
+          type: integer
+          enum: [512]
+          description: 特徴量の次元数（現在は512のみサポート）
+        model_version:
+          type: string
+          example: facenet-tflite-v1
+          description: 特徴量生成に使用したモデルのバージョン
+        note:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: 任意メモ
+        source_image_hash:
+          type: string
+          nullable: true
+          description: 元画像のハッシュ値（任意）
 
