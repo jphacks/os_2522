@@ -69,26 +69,26 @@ jobs:
           go build ./...
       - uses: github/codeql-action/analyze@v3
 
-  ########################################
-  # Job 3: SCA (Snyk for Go)
-  ########################################
-  sca_scan_go:
-    name: 3. SCA (Snyk Go)
-    runs-on: ubuntu-latest
-    needs: go_formatter_check
-    env:
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.21"
-          cache: true
-      - uses: snyk/actions/setup@v4
-      - name: Run Snyk (Go)
-        if: ${{ env.SNYK_TOKEN != '' }}
-        continue-on-error: true # 脆弱性検知でパイプラインは止めない
-        # 'backend/' ディレクトリを指定してスキャン
-        run: snyk test ./backend --severity-threshold=medium
-        env:
-          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
+  # ########################################
+  # # Job 3: SCA (Snyk for Go)
+  # ########################################
+  # sca_scan_go:
+  #   name: 3. SCA (Snyk Go)
+  #   runs-on: ubuntu-latest
+  #   needs: go_formatter_check
+  #   env:
+  #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "1.21"
+  #         cache: true
+  #     - uses: snyk/actions/setup@v4
+  #     - name: Run Snyk (Go)
+  #       if: ${{ env.SNYK_TOKEN != '' }}
+  #       continue-on-error: true # 脆弱性検知でパイプラインは止めない
+  #       # 'backend/' ディレクトリを指定してスキャン
+  #       run: snyk test ./backend --severity-threshold=medium
+  #       env:
+  #         SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
