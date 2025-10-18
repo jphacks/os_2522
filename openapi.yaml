@@ -54,6 +54,57 @@ paths:
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
 
+  /recognize-image:
+    post:
+      summary: 顔認識 (画像版)
+      description: 送信された顔画像から特徴量を抽出し、登録済みの人物と照合します。
+      operationId: recognizeFaceImage
+      tags:
+        - 顔認識
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: 顔画像ファイル (JPEG, PNGなど)
+                top_k:
+                  type: integer
+                  description: 上位何件まで候補を返すか。デフォルトは3、1～10の範囲で指定可能。
+                  default: 3
+                  minimum: 1
+                  maximum: 10
+                min_score:
+                  type: number
+                  format: float
+                  description: 候補として判定するための類似度スコアの閾値。デフォルトは0.6、0～1の範囲で指定。
+                  default: 0.6
+                  minimum: 0
+                  maximum: 1
+      responses:
+        "200":
+          description: 照合成功。レスポンスは /v1/recognize と同じ形式です。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecognitionResponse"
+        "400":
+          description: 画像ファイルが不正、または顔が検出できない。
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "500":
+          description: サーバー内部エラー（MLモデルのロード失敗など）
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /persons:
     get:
       summary: 人物一覧を取得（ページング）
