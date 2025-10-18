@@ -1,8 +1,11 @@
 module github.com/jphacks/os_2522/backend
 
-go 1.24.0
+go 1.24.7
 
-require github.com/gin-gonic/gin v1.11.0
+require (
+	github.com/gin-gonic/gin v1.11.0
+	github.com/google/uuid v1.6.0
+)
 
 require (
 	github.com/bytedance/sonic v1.14.0 // indirect
