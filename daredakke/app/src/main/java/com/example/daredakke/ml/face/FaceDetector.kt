@@ -482,12 +482,15 @@ class FaceDetector(
         if (currentTime - lastTime < AppConstants.EMBEDDING_CAPTURE_INTERVAL_MS) {
             return
         }
-        
-        // 既に認識済みの場合はスキップ（追加の埋め込みは別途実装）
-        if (trackingInfo.recognizedPersonId != null) {
+
+        // 認識済みで埋め込みが既にある場合はスキップ
+        // 埋め込みがない場合は再抽出を許可（保存後の再認識対応）
+        if (trackingInfo.recognizedPersonId != null &&
+            lastExtractedEmbeddings[trackingId] != null) {
+            println("⏭️ Skip embedding extraction: already recognized and embedding exists for trackingId=$trackingId")
             return
         }
-        
+
         lastEmbeddingExtractionTime[trackingId] = currentTime
 
         // 認識処理中フラグを設定（レースコンディション対策）
@@ -655,9 +658,22 @@ class FaceDetector(
      * 新しい人物として保存
      */
     suspend fun saveNewPersonWithEmbedding(trackingId: Int, name: String): Long? {
-        val trackingInfo = trackingInfoMap[trackingId] ?: return null
-        val embedding = lastExtractedEmbeddings[trackingId] ?: return null
-        
+        val trackingInfo = trackingInfoMap[trackingId]
+        val embedding = lastExtractedEmbeddings[trackingId]
+
+        println("💾 Attempting to save person: trackingId=$trackingId, name=$name")
+        println("   trackingInfo exists: ${trackingInfo != null}")
+        println("   embedding exists: ${embedding != null}")
+
+        if (trackingInfo == null) {
+            println("❌ Save failed: trackingInfo not found")
+            return null
+        }
+        if (embedding == null) {
+            println("❌ Save failed: embedding not found")
+            return null
+        }
+
         return try {
             val personId = faceRecognizer?.saveNewPerson(name, embedding) ?: return null
             trackingInfo.recognizedPersonId = personId
@@ -666,10 +682,11 @@ class FaceDetector(
                 personName = name,
                 lastSummary = null
             )
-            
-            // 保存済みの埋め込みを削除
+
+            // 保存済みの埋め込みを削除（次回の再抽出を促す）
             lastExtractedEmbeddings.remove(trackingId)
             lastEmbeddingExtractionTime.remove(trackingId)
+            println("✅ Person saved successfully: personId=$personId, embedding cleared for re-extraction")
             
             // サムネイルを保存
             persistFaceThumbnailIfAvailable(personId, trackingId)
