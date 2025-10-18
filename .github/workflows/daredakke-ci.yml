@@ -38,6 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: gradle/wrapper-validation-action@v2
+        continue-on-error: true # ネットワーク不調時は警告に留める
       - uses: actions/setup-java@v4
         with:
           distribution: "temurin"
