@@ -90,7 +90,8 @@ class FaceDetector(
     }
     
     /**
-     * シンプルな座標変換（サイズ・位置調整付き）
+     * シンプルな座標変換
+     * ML Kitの座標をプレビュー座標に変換し、必要に応じてカメラの向きに対応
      */
     private fun transformCoordinatesSimple(
         bbox: android.graphics.Rect,
@@ -101,54 +102,32 @@ class FaceDetector(
         val displayWidth = if (previewWidth > 0) previewWidth.toFloat() else AppConstants.CAMERA_WIDTH.toFloat()
         val displayHeight = if (previewHeight > 0) previewHeight.toFloat() else AppConstants.CAMERA_HEIGHT.toFloat()
         
-        // 基本的なスケール変換
+        // 画像座標からプレビュー座標へのスケール計算
         val scaleX = displayWidth / imageWidth.toFloat()
         val scaleY = displayHeight / imageHeight.toFloat()
         
-        // 元のBBOX座標をスケール変換
-        val originalLeft = bbox.left * scaleX
-        val originalTop = bbox.top * scaleY
-        val originalRight = bbox.right * scaleX
-        val originalBottom = bbox.bottom * scaleY
+        // BBOX座標をスケール変換
+        val scaledLeft = bbox.left * scaleX
+        val scaledTop = bbox.top * scaleY
+        val scaledRight = bbox.right * scaleX
+        val scaledBottom = bbox.bottom * scaleY
         
-        // 元のサイズ
-        val originalWidth = originalRight - originalLeft
-        val originalHeight = originalBottom - originalTop
-        
-        // 調整後のサイズ
-        val adjustedWidth = originalWidth * 1.3f  // 横幅1.3倍
-        val adjustedHeight = originalHeight        // 高さはそのまま
-        
-        // 調整後の位置（中心を基準に横幅を拡大、上に100px移動）
-        val centerX = (originalLeft + originalRight) / 2f
-        val adjustedLeft = centerX - (adjustedWidth / 2f)
-        val adjustedRight = centerX + (adjustedWidth / 2f)
-        val adjustedTop = originalTop - 100f  // 100px上に移動
-        val adjustedBottom = adjustedTop + adjustedHeight
-        
-        val result = if (isUsingFrontCamera) {
-            // フロントカメラの場合：左右反転
+        // フロントカメラの場合は左右反転、それ以外はそのまま
+        return if (isUsingFrontCamera) {
             Rect(
-                left = displayWidth - adjustedRight,
-                top = adjustedTop,
-                right = displayWidth - adjustedLeft,
-                bottom = adjustedBottom
+                left = displayWidth - scaledRight,
+                top = scaledTop,
+                right = displayWidth - scaledLeft,
+                bottom = scaledBottom
             )
         } else {
-            // アウトカメラの場合：通常の変換
             Rect(
-                left = adjustedLeft,
-                top = adjustedTop,
-                right = adjustedRight,
-                bottom = adjustedBottom
+                left = scaledLeft,
+                top = scaledTop,
+                right = scaledRight,
+                bottom = scaledBottom
             )
         }
-        
-        println("BBOX adjustment: scale=${scaleX}x${scaleY}, frontCam=$isUsingFrontCamera")
-        println("Original: w=${originalWidth.toInt()}, h=${originalHeight.toInt()}")
-        println("Adjusted: w=${adjustedWidth.toInt()}, h=${adjustedHeight.toInt()}, moved up 100px")
-        println("Result: $result")
-        return result
     }
     
     /**
@@ -386,32 +365,29 @@ class FaceDetector(
     
     /**
      * 顔サムネイルを生成
+     * ML Kitで検出された顔領域から画像を切り出す
      */
     private fun captureFaceThumbnail(
         frameBitmap: Bitmap,
         face: com.google.mlkit.vision.face.Face
     ): Bitmap? {
         val bbox = face.boundingBox
+        
+        // BBOXのサイズチェック
         if (bbox.width() <= 0 || bbox.height() <= 0) {
             return null
         }
         
-        val widthScale = 1.3f
-        val heightScale = 1.35f
-        val centerX = bbox.exactCenterX()
-        val centerY = bbox.exactCenterY() - bbox.height() * 0.1f
-        
-        val halfWidth = (bbox.width() * widthScale / 2f)
-        val halfHeight = (bbox.height() * heightScale / 2f)
-        
-        val left = (centerX - halfWidth).roundToInt().coerceAtLeast(0)
-        val top = (centerY - halfHeight).roundToInt().coerceAtLeast(0)
-        val right = (centerX + halfWidth).roundToInt().coerceAtMost(frameBitmap.width)
-        val bottom = (centerY + halfHeight).roundToInt().coerceAtMost(frameBitmap.height)
+        // 画像の範囲内に収まるように調整
+        val left = bbox.left.coerceAtLeast(0)
+        val top = bbox.top.coerceAtLeast(0)
+        val right = bbox.right.coerceAtMost(frameBitmap.width)
+        val bottom = bbox.bottom.coerceAtMost(frameBitmap.height)
         
         val finalWidth = right - left
         val finalHeight = bottom - top
         
+        // 最終的なサイズチェック
         if (finalWidth <= 0 || finalHeight <= 0) {
             return null
         }
