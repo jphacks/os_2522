@@ -479,13 +479,13 @@ class FaceDetector(
         }
         
         lastEmbeddingExtractionTime[trackingId] = currentTime
-        
+
+        // ImageProxyからBitmapを作成
+        val bitmap = imageProxyToBitmap(imageProxy)
+
         // 非同期で埋め込み抽出と認識処理を実行
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // ImageProxyからBitmapを作成
-                val bitmap = imageProxyToBitmap(imageProxy)
-                
                 // 顔サムネイルをキャッシュ
                 captureFaceThumbnail(bitmap, face)?.let { thumbnail ->
                     cacheFaceThumbnail(trackingId, thumbnail)
