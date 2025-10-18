@@ -291,6 +291,55 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /persons/{person_id}/faces-image:
+    post:
+      summary: 顔画像の追加登録 (画像版)
+      description: 特定の人物に、新しい顔画像を追加登録します。サーバー側で特徴量を抽出し、DBに保存します。
+      operationId: addFaceImage
+      tags:
+        - 顔 (Face)
+      parameters:
+        - $ref: "#/components/parameters/PersonId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: 追加する顔画像ファイル (JPEG, PNGなど)
+                note:
+                  type: string
+                  description: 備考（最大2000文字）。
+      responses:
+        "201":
+          description: 顔画像の追加登録に成功。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Face"
+        "400":
+          description: 画像ファイルが不正、または顔が検出できない。
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: 指定された人物IDが見つからない。
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "500":
+          description: サーバー内部エラー。
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /persons/{person_id}/encounters:
     get:
       summary: 該当人物との遭遇ログ一覧
