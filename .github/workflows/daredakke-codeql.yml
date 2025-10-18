@@ -24,7 +24,6 @@ jobs:
       packages: read
       actions: read
       contents: read
-    continue-on-error: true
 
     steps:
       - name: Checkout repository
@@ -53,4 +52,4 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:java-kotlin"
-        continue-on-error: true
+        # continue-on-error: true
