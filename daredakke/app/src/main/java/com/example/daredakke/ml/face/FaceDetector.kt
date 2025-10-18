@@ -493,12 +493,18 @@ class FaceDetector(
         // 認識処理中フラグを設定（レースコンディション対策）
         trackingInfo.isRecognitionInProgress = true
 
+        // ImageProxyからBitmapを作成（imageProxyが閉じられる前に）
+        val bitmap = try {
+            imageProxyToBitmap(imageProxy)
+        } catch (e: Exception) {
+            println("❌ Failed to convert imageProxy to bitmap: ${e.message}")
+            trackingInfo.isRecognitionInProgress = false
+            return
+        }
+
         // 非同期で埋め込み抽出と認識処理を実行
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // ImageProxyからBitmapを作成
-                val bitmap = imageProxyToBitmap(imageProxy)
-
                 // 顔サムネイルをキャッシュ
                 captureFaceThumbnail(bitmap, face)?.let { thumbnail ->
                     cacheFaceThumbnail(trackingId, thumbnail)
