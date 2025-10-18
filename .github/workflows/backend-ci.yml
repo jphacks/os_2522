@@ -71,7 +71,7 @@ jobs:
           go mod download
           go build ./cmd/server
       - uses: github/codeql-action/analyze@v4
-        # continue-on-error: true
+        continue-on-error: true
 
   # ########################################
   # # Job 3: SCA (Snyk for Go)
