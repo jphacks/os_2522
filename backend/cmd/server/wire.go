@@ -50,6 +50,7 @@ func InitializeApp() (*Handlers, error) {
 	// Initialize services
 	personService := service.NewPersonService(personRepo, faceRepo)
 	faceService := service.NewFaceService(faceRepo, personRepo)
+	faceExtractionService := service.NewFaceExtractionService()
 	recognitionService := service.NewRecognitionService(faceRepo, personRepo, encounterRepo)
 	encounterService := service.NewEncounterService(encounterRepo, personRepo)
 	jobService := service.NewJobService(jobRepo)
@@ -59,7 +60,7 @@ func InitializeApp() (*Handlers, error) {
 		Health:      handler.NewHealthHandler(),
 		Person:      handler.NewPersonHandler(personService),
 		Face:        handler.NewFaceHandler(faceService),
-		Recognition: handler.NewRecognitionHandler(recognitionService),
+		Recognition: handler.NewRecognitionHandler(recognitionService, faceExtractionService),
 		Encounter:   handler.NewEncounterHandler(encounterService),
 		Transcribe:  handler.NewTranscribeHandler(jobService),
 	}
