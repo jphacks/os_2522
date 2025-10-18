@@ -16,7 +16,7 @@ object AppConstants {
     const val FACE_STABILITY_DURATION_MS = 200L // 顔安定判定の連続時間
     
     // 顔認識
-    const val FACE_RECOGNITION_COSINE_THRESHOLD = 0.76f // コサイン類似度しきい値
+    const val FACE_RECOGNITION_COSINE_THRESHOLD = 0.65f // コサイン類似度しきい値（0.76から調整）
     const val FACE_RECOGNITION_L2_THRESHOLD = 1.2f // L2距離しきい値
     const val MAX_EMBEDDINGS_PER_PERSON = 10 // 1人あたりの最大埋め込み数
     const val TOP_K_EMBEDDINGS_FOR_MATCHING = 5 // 照合に使用する上位k個の埋め込み

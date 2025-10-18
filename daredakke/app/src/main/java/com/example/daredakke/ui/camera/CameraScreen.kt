@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModel
+import com.example.daredakke.constants.AppConstants
 import com.example.daredakke.ml.face.FaceDetector
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -121,54 +122,55 @@ private fun CameraPreviewWithOverlay(
     DisposableEffect(lifecycleOwner, isUsingFrontCamera) {
         val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
         val faceDetector = viewModel.createIntegratedFaceDetector()
-        
+        var cameraProvider: ProcessCameraProvider? = null
+
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
-            val cameraProvider = cameraProviderFuture.get()
-            
+            cameraProvider = cameraProviderFuture.get()
+
             // プレビューの設定
             val preview = Preview.Builder()
                 .build()
                 .also { preview ->
                     previewView?.let { preview.setSurfaceProvider(it.surfaceProvider) }
                 }
-            
+
             // 画像解析の設定（顔検出用）
             val imageAnalyzer = ImageAnalysis.Builder()
-                .setTargetResolution(android.util.Size(640, 480))
+                .setTargetResolution(android.util.Size(AppConstants.CAMERA_WIDTH, AppConstants.CAMERA_HEIGHT))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also { analyzer ->
                     analyzer.setAnalyzer(cameraExecutor, faceDetector)
                 }
-            
+
             // カメラセレクタ（ViewModelの状態に応じて選択）
             val cameraSelector = if (isUsingFrontCamera) {
                 CameraSelector.DEFAULT_FRONT_CAMERA
             } else {
                 CameraSelector.DEFAULT_BACK_CAMERA
             }
-            
+
             try {
                 // 既存のバインドを解除
-                cameraProvider.unbindAll()
-                
+                cameraProvider?.unbindAll()
+
                 // カメラをライフサイクルにバインド
-                cameraProvider.bindToLifecycle(
+                cameraProvider?.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
                     preview,
                     imageAnalyzer
                 )
-                
+
                 // ViewModelに顔検出器を設定
                 viewModel.setFaceDetector(faceDetector)
-                
+
                 // カメラの向きを設定
                 val isFrontCamera = (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA)
                 faceDetector.setCameraFacing(isFrontCamera)
                 println("Camera facing: ${if (isFrontCamera) "FRONT" else "BACK"}")
-                
+
                 // プレビューサイズを顔検出器に設定（レイアウト後）
                 previewView?.post {
                     previewView?.let { preview ->
@@ -181,16 +183,23 @@ private fun CameraPreviewWithOverlay(
                         }
                     }
                 }
-                
+
             } catch (exc: Exception) {
                 println("Camera binding failed: ${exc.message}")
             }
-            
+
         }, ContextCompat.getMainExecutor(context))
-        
+
         onDispose {
-            faceDetector.release()
-            cameraExecutor.shutdown()
+            // カメラリソースを確実に解放
+            try {
+                cameraProvider?.unbindAll()
+                faceDetector.release()
+            } catch (e: Exception) {
+                println("Error during camera cleanup: ${e.message}")
+            } finally {
+                cameraExecutor.shutdown()
+            }
         }
     }
     
@@ -208,9 +217,6 @@ private fun CameraPreviewWithOverlay(
         // 顔検出結果のオーバーレイ
         FaceDetectionOverlay(
             detectionResults = detectionResults,
-            onUnknownFaceTap = { trackingId ->
-                viewModel.onUnknownFaceTapped(trackingId)
-            },
             modifier = Modifier.fillMaxSize()
         )
         
@@ -268,17 +274,48 @@ private fun CameraPreviewWithOverlay(
         ) {
             Text("👥")
         }
-    }
-    
-    // 名前入力ダイアログ
-    showNameDialog?.let { trackingId ->
-        NameInputDialog(
-            trackingId = trackingId,
-            onDismiss = { viewModel.dismissNameDialog() },
-            onSave = { name ->
-                viewModel.savePersonName(trackingId, name)
+
+        // 人物登録ボタン（中央下部）
+        val hasUnknownFace = detectionResults.any {
+            it.recognitionInfo?.isRecognized != true
+        }
+
+        FloatingActionButton(
+            onClick = { viewModel.onRegisterButtonTapped() },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp),
+            containerColor = if (hasUnknownFace) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
             }
-        )
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("➕")
+                Text("人物を登録")
+            }
+        }
+    }
+
+    // 名前入力ダイアログ
+    if (showNameDialog) {
+        val unknownFace = detectionResults.firstOrNull {
+            it.recognitionInfo?.isRecognized != true
+        }
+        unknownFace?.trackingId?.let { trackingId ->
+            NameInputDialog(
+                trackingId = trackingId,
+                onDismiss = { viewModel.dismissNameDialog() },
+                onSave = { name ->
+                    viewModel.savePersonName(name)
+                }
+            )
+        }
     }
     
 }
