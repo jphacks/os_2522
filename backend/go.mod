@@ -1,4 +1,4 @@
-module github.com/teradatakeshishou/os_2522/backend
+module github.com/jphacks/os_2522/backend
 
 go 1.24.7
 

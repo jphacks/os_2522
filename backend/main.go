@@ -4,11 +4,11 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/teradatakeshishou/os_2522/backend/internal/database"
-	"github.com/teradatakeshishou/os_2522/backend/internal/handler"
-	"github.com/teradatakeshishou/os_2522/backend/internal/middleware"
-	"github.com/teradatakeshishou/os_2522/backend/internal/repository"
-	"github.com/teradatakeshishou/os_2522/backend/internal/service"
+	"github.com/jphacks/os_2522/backend/internal/database"
+	"github.com/jphacks/os_2522/backend/internal/handler"
+	"github.com/jphacks/os_2522/backend/internal/middleware"
+	"github.com/jphacks/os_2522/backend/internal/repository"
+	"github.com/jphacks/os_2522/backend/internal/service"
 )
 
 func main() {

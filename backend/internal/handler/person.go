@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/teradatakeshishou/os_2522/backend/internal/errors"
-	"github.com/teradatakeshishou/os_2522/backend/internal/models"
-	"github.com/teradatakeshishou/os_2522/backend/internal/service"
+	"github.com/jphacks/os_2522/backend/internal/errors"
+	"github.com/jphacks/os_2522/backend/internal/models"
+	"github.com/jphacks/os_2522/backend/internal/service"
 	"gorm.io/gorm"
 )
 

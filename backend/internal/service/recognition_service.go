@@ -5,8 +5,8 @@ import (
 	"math"
 	"mime/multipart"
 
-	"github.com/teradatakeshishou/os_2522/backend/internal/models"
-	"github.com/teradatakeshishou/os_2522/backend/internal/repository"
+	"github.com/jphacks/os_2522/backend/internal/models"
+	"github.com/jphacks/os_2522/backend/internal/repository"
 )
 
 // RecognitionService handles face recognition business logic

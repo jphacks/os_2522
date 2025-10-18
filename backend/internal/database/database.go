@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/teradatakeshishou/os_2522/backend/internal/repository"
+	"github.com/jphacks/os_2522/backend/internal/repository"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
