@@ -24,7 +24,6 @@ jobs:
       packages: read
       actions: read
       contents: read
-    continue-on-error: true
 
     steps:
       - name: Checkout repository
