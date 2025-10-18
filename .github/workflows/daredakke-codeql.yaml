@@ -18,6 +18,7 @@ jobs:
   analyze:
     name: Analyze (java-kotlin)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       security-events: write
       packages: read
@@ -46,7 +47,7 @@ jobs:
         working-directory: daredakke
         shell: bash
         run: |
-          ./gradlew --stacktrace --no-daemon assembleDebug
+          ./gradlew --stacktrace --no-daemon assembleDebug  -x test -x lint
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

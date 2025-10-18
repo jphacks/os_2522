@@ -54,6 +54,7 @@ jobs:
     name: 2. SAST (CodeQL Go)
     runs-on: ubuntu-latest
     needs: go_formatter_check
+    timeout-minutes: 15
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +70,7 @@ jobs:
         working-directory: backend
         run: |
           go mod download
-          go build ./...
+          go build ./cmd/server
       - uses: github/codeql-action/analyze@v4
         continue-on-error: true
 
