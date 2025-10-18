@@ -1,52 +1,45 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/jphacks/os_2522/backend/internal/errors"
-	"github.com/jphacks/os_2522/backend/internal/models"
+	"github.com/teradatakeshishou/os_2522/backend/internal/errors"
+	"github.com/teradatakeshishou/os_2522/backend/internal/service"
 )
 
 // TranscribeHandler handles transcription requests
 type TranscribeHandler struct {
-	// Add service dependencies here when implemented
+	jobService *service.JobService
 }
 
 // NewTranscribeHandler creates a new TranscribeHandler
-func NewTranscribeHandler() *TranscribeHandler {
-	return &TranscribeHandler{}
+func NewTranscribeHandler(jobService *service.JobService) *TranscribeHandler {
+	return &TranscribeHandler{jobService: jobService}
 }
 
 // PostTranscribe handles POST /transcribe
 func (h *TranscribeHandler) PostTranscribe(c *gin.Context) {
-	// Get optional person_id
-	personID := c.PostForm("person_id")
+	var personID *string
+	if pid := c.PostForm("person_id"); pid != "" {
+		personID = &pid
+	}
 
-	// Get multipart form file
 	file, err := c.FormFile("audio")
 	if err != nil {
 		errors.RespondWithError(c, errors.BadRequest("Audio file is required"))
 		return
 	}
 
-	// Get optional webhook URL
-	webhookURL := c.PostForm("webhook_url")
+	var webhookURL *string
+	if wh := c.PostForm("webhook_url"); wh != "" {
+		webhookURL = &wh
+	}
 
-	// TODO: Implement actual transcription job creation
-	_ = personID
-	_ = webhookURL
-	_ = file
-
-	// Mock response - create a job
-	jobID := fmt.Sprintf("j-%s", uuid.New().String()[:8])
-	job := models.Job{
-		JobID:     jobID,
-		Status:    models.JobStatusQueued,
-		CreatedAt: time.Now(),
+	job, err := h.jobService.CreateTranscriptionJob(personID, file, webhookURL)
+	if err != nil {
+		errors.RespondWithError(c, errors.InternalServerError(err.Error()))
+		return
 	}
 
 	c.JSON(http.StatusAccepted, job)
@@ -56,23 +49,14 @@ func (h *TranscribeHandler) PostTranscribe(c *gin.Context) {
 func (h *TranscribeHandler) GetJob(c *gin.Context) {
 	jobID := c.Param("job_id")
 
-	// TODO: Implement actual job status query
-	_ = jobID
-
-	// Mock response - return a completed job
-	personID := "p-12345"
-	job := models.Job{
-		JobID:      jobID,
-		Status:     models.JobStatusSucceeded,
-		CreatedAt:  time.Now().Add(-5 * time.Minute),
-		FinishedAt: &[]time.Time{time.Now()}[0],
-		Result: &models.TranscriptionResult{
-			PersonID:    &personID,
-			Transcript:  "こんにちは、今日は良い天気ですね。",
-			Summary:     "天候について話しました。",
-			Language:    "ja",
-			DurationSec: 3.5,
-		},
+	job, err := h.jobService.GetJob(jobID)
+	if err != nil {
+		if err.Error() == "job not found" {
+			errors.RespondWithError(c, errors.NotFound("Job not found"))
+			return
+		}
+		errors.RespondWithError(c, errors.InternalServerError(err.Error()))
+		return
 	}
 
 	c.JSON(http.StatusOK, job)

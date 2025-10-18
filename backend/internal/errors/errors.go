@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jphacks/os_2522/backend/internal/models"
+	"github.com/teradatakeshishou/os_2522/backend/internal/models"
 )
 
 // AppError represents an application error

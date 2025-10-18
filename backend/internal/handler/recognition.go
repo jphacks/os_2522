@@ -5,23 +5,22 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jphacks/os_2522/backend/internal/errors"
-	"github.com/jphacks/os_2522/backend/internal/models"
+	"github.com/teradatakeshishou/os_2522/backend/internal/errors"
+	"github.com/teradatakeshishou/os_2522/backend/internal/service"
 )
 
 // RecognitionHandler handles face recognition requests
 type RecognitionHandler struct {
-	// Add service dependencies here when implemented
+	recognitionService *service.RecognitionService
 }
 
 // NewRecognitionHandler creates a new RecognitionHandler
-func NewRecognitionHandler() *RecognitionHandler {
-	return &RecognitionHandler{}
+func NewRecognitionHandler(recognitionService *service.RecognitionService) *RecognitionHandler {
+	return &RecognitionHandler{recognitionService: recognitionService}
 }
 
 // PostRecognize handles POST /recognize
 func (h *RecognitionHandler) PostRecognize(c *gin.Context) {
-	// Parse query parameters
 	topKStr := c.DefaultQuery("top_k", "3")
 	topK, err := strconv.Atoi(topKStr)
 	if err != nil || topK < 1 || topK > 10 {
@@ -36,42 +35,22 @@ func (h *RecognitionHandler) PostRecognize(c *gin.Context) {
 		return
 	}
 
-	// Get multipart form file
 	file, err := c.FormFile("image")
 	if err != nil {
 		errors.RespondWithError(c, errors.BadRequest("Image file is required"))
 		return
 	}
 
-	// Validate file type
 	contentType := file.Header.Get("Content-Type")
 	if contentType != "image/jpeg" && contentType != "image/png" {
 		errors.RespondWithError(c, errors.UnsupportedMediaType("Only JPEG and PNG images are supported"))
 		return
 	}
 
-	// TODO: Implement actual face recognition logic
-	_ = topK
-	_ = minScore
-
-	// Mock response
-	summary := "前回の会話で技術的な議論をしました"
-	response := models.RecognitionResponse{
-		Status: models.RecognitionStatusKnown,
-		BestMatch: &models.RecognitionCandidate{
-			PersonID:    "p-12345",
-			Name:        "山田 太郎",
-			Score:       0.92,
-			LastSummary: &summary,
-		},
-		Candidates: []models.RecognitionCandidate{
-			{
-				PersonID:    "p-12345",
-				Name:        "山田 太郎",
-				Score:       0.92,
-				LastSummary: &summary,
-			},
-		},
+	response, err := h.recognitionService.Recognize(file, topK, minScore)
+	if err != nil {
+		errors.RespondWithError(c, errors.InternalServerError(err.Error()))
+		return
 	}
 
 	c.JSON(http.StatusOK, response)

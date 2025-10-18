@@ -1,25 +1,26 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/jphacks/os_2522/backend/internal/errors"
-	"github.com/jphacks/os_2522/backend/internal/models"
+	"github.com/teradatakeshishou/os_2522/backend/internal/errors"
+	"github.com/teradatakeshishou/os_2522/backend/internal/models"
+	"github.com/teradatakeshishou/os_2522/backend/internal/service"
+	"gorm.io/gorm"
 )
 
 // PersonHandler handles person-related requests
 type PersonHandler struct {
-	// Add service dependencies here when implemented
+	personService *service.PersonService
 }
 
 // NewPersonHandler creates a new PersonHandler
-func NewPersonHandler() *PersonHandler {
-	return &PersonHandler{}
+func NewPersonHandler(personService *service.PersonService) *PersonHandler {
+	return &PersonHandler{
+		personService: personService,
+	}
 }
 
 // ListPersons handles GET /persons
@@ -32,28 +33,20 @@ func (h *PersonHandler) ListPersons(c *gin.Context) {
 		return
 	}
 
-	cursor := c.Query("cursor")
-	q := c.Query("q")
-
-	// TODO: Implement actual repository query
-	_ = cursor
-	_ = q
-	_ = limit
-
-	// Mock response for now
-	persons := []models.Person{
-		{
-			PersonID:   "p-12345",
-			Name:       "山田 太郎",
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
-			FacesCount: 3,
-		},
+	var cursor *string
+	if c := c.Query("cursor"); c != "" {
+		cursor = &c
 	}
 
-	response := models.PersonList{
-		Items:      persons,
-		NextCursor: nil,
+	var q *string
+	if qParam := c.Query("q"); qParam != "" {
+		q = &qParam
+	}
+
+	response, err := h.personService.ListPersons(limit, cursor, q)
+	if err != nil {
+		errors.RespondWithError(c, errors.InternalServerError(err.Error()))
+		return
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -67,18 +60,13 @@ func (h *PersonHandler) CreatePerson(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement actual person creation logic
-	// For now, return a mock response
-	personID := fmt.Sprintf("p-%s", uuid.New().String()[:8])
-	person := models.Person{
-		PersonID:   personID,
-		Name:       req.Name,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-		FacesCount: 0,
+	person, err := h.personService.CreatePerson(&req)
+	if err != nil {
+		errors.RespondWithError(c, errors.InternalServerError(err.Error()))
+		return
 	}
 
-	location := fmt.Sprintf("/v1/persons/%s", personID)
+	location := "/v1/persons/" + person.PersonID
 	c.Header("Location", location)
 	c.JSON(http.StatusCreated, person)
 }
@@ -87,20 +75,19 @@ func (h *PersonHandler) CreatePerson(c *gin.Context) {
 func (h *PersonHandler) GetPerson(c *gin.Context) {
 	personID := c.Param("person_id")
 
-	// Validate person_id format
 	if personID == "" {
 		errors.RespondWithError(c, errors.BadRequest("person_id is required"))
 		return
 	}
 
-	// TODO: Implement actual repository query
-	// Mock response for now
-	person := models.Person{
-		PersonID:   personID,
-		Name:       "山田 太郎",
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-		FacesCount: 3,
+	person, err := h.personService.GetPerson(personID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound || err.Error() == "person not found" {
+			errors.RespondWithError(c, errors.NotFound("Person not found"))
+			return
+		}
+		errors.RespondWithError(c, errors.InternalServerError(err.Error()))
+		return
 	}
 
 	c.JSON(http.StatusOK, person)
@@ -116,16 +103,14 @@ func (h *PersonHandler) UpdatePerson(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement actual update logic
-	_ = personID
-
-	// Mock response
-	person := models.Person{
-		PersonID:   personID,
-		Name:       *req.Name,
-		CreatedAt:  time.Now().Add(-24 * time.Hour),
-		UpdatedAt:  time.Now(),
-		FacesCount: 3,
+	person, err := h.personService.UpdatePerson(personID, &req)
+	if err != nil {
+		if err.Error() == "person not found" {
+			errors.RespondWithError(c, errors.NotFound("Person not found"))
+			return
+		}
+		errors.RespondWithError(c, errors.InternalServerError(err.Error()))
+		return
 	}
 
 	c.JSON(http.StatusOK, person)
@@ -135,8 +120,15 @@ func (h *PersonHandler) UpdatePerson(c *gin.Context) {
 func (h *PersonHandler) DeletePerson(c *gin.Context) {
 	personID := c.Param("person_id")
 
-	// TODO: Implement actual deletion (soft delete)
-	_ = personID
+	err := h.personService.DeletePerson(personID)
+	if err != nil {
+		if err.Error() == "person not found" {
+			errors.RespondWithError(c, errors.NotFound("Person not found"))
+			return
+		}
+		errors.RespondWithError(c, errors.InternalServerError(err.Error()))
+		return
+	}
 
 	c.Status(http.StatusNoContent)
 }

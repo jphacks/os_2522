@@ -1,0 +1,588 @@
+openapi: 3.1.0
+info:
+  title: Arsome Hackathon API
+  version: 1.0.0
+  description: |
+    顔認識・会話要約を扱うハッカソン向けREST API。言語は日本語を想定。
+    - ベースURLは `/v1`（URLバージョニング）
+    - 認証は `X-API-Key` ヘッダ
+    - エラーは RFC 7807 (application/problem+json) 互換
+servers:
+  - url: http://localhost:8080/v1
+    description: ローカル開発
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /healthz:
+    get:
+      summary: ヘルスチェック
+      operationId: healthz
+      responses:
+        '200':
+          description: OK
+
+  /recognize:
+    post:
+      summary: 顔画像から人物を照合
+      description: |
+        画像アップロード（multipart）で既知人物か判定します。
+        `top_k` と `min_score` で結果数・閾値を調整できます。
+      operationId: postRecognize
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: top_k
+          schema: { type: integer, minimum: 1, maximum: 10, default: 3 }
+          description: 上位K件の候補を返す
+        - in: query
+          name: min_score
+          schema: { type: number, format: float, minimum: 0, maximum: 1, default: 0.6 }
+          description: スコア閾値（0-1, 1が完全一致）
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: JPEG/PNGの顔画像
+      responses:
+        '200':
+          description: 照合結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecognitionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+
+  /persons:
+    get:
+      summary: 人物一覧を取得（ページング）
+      operationId: listPersons
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+        - in: query
+          name: q
+          schema: { type: string }
+          description: 名前の部分一致検索
+      responses:
+        '200':
+          description: 一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: 新規人物の登録
+      operationId: createPerson
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonCreate'
+      responses:
+        '201':
+          description: 作成
+          headers:
+            Location:
+              schema: { type: string }
+              description: 新規リソースURL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /persons/{person_id}:
+    get:
+      summary: 人物の詳細を取得
+      operationId: getPerson
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PersonId'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: 人物の更新（部分更新）
+      operationId: updatePerson
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PersonId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonUpdate'
+      responses:
+        '200':
+          description: 更新後
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: 人物の削除（ソフトデリート推奨）
+      operationId: deletePerson
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PersonId'
+      responses:
+        '204':
+          description: 削除完了
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /persons/{person_id}/faces:
+    post:
+      summary: 顔画像を追加（埋め込み自動生成）
+      operationId: addFace
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PersonId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary, description: 顔画像(JPEG/PNG) }
+                note: { type: string, description: 任意メモ }
+      responses:
+        '201':
+          description: 作成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Face'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      summary: 人物に紐づく顔一覧
+      operationId: listFaces
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PersonId'
+      responses:
+        '200':
+          description: 一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Face' }
+
+  /persons/{person_id}/faces/{face_id}:
+    delete:
+      summary: 顔の削除
+      operationId: deleteFace
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PersonId'
+        - $ref: '#/components/parameters/FaceId'
+      responses:
+        '204':
+          description: 削除完了
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /persons/{person_id}/encounters:
+    get:
+      summary: 該当人物との遭遇ログ一覧
+      operationId: listEncounters
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PersonId'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EncounterList'
+
+  /transcribe:
+    post:
+      summary: 音声の書き起こしと要約の非同期処理を開始
+      operationId: postTranscribe
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [audio]
+              properties:
+                person_id:
+                  type: string
+                  pattern: '^p-[A-Za-z0-9]+$'
+                  description: 既知の場合は指定
+                audio:
+                  type: string
+                  format: binary
+                  description: WAV/FLAC/MP3 など
+                webhook_url:
+                  type: string
+                  format: uri
+                  description: 完了通知用のWebhook（任意）
+      responses:
+        '202':
+          description: 受け付け
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /jobs/{job_id}:
+    get:
+      summary: 非同期ジョブの状態/結果取得
+      operationId: getJob
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: ジョブ情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    PersonId:
+      name: person_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^p-[A-Za-z0-9]+$'
+    FaceId:
+      name: face_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^f-[A-Za-z0-9]+$'
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^j-[A-Za-z0-9]+$'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: 同一リクエストの重複実行を防止するキー
+      schema:
+        type: string
+        maxLength: 128
+    limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      description: 取得上限
+    cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+      description: 続き取得用カーソル
+
+  responses:
+    BadRequest:
+      description: 不正なリクエスト
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: 認証エラー
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: リソースが見つからない
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: 競合（重複など）
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    PayloadTooLarge:
+      description: ペイロードが大きすぎます
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    UnsupportedMediaType:
+      description: 非対応のメディアタイプ
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        trace_id: { type: string, description: ログ相関ID }
+
+    PersonCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        face_image_base64:
+          type: string
+          description: 顔画像のBase64（任意、multipart推奨）
+        note:
+          type: string
+          maxLength: 2000
+
+    PersonUpdate:
+      type: object
+      properties:
+        name: { type: string, maxLength: 100 }
+        note: { type: string, maxLength: 2000 }
+
+    Person:
+      type: object
+      required: [person_id, name, created_at]
+      properties:
+        person_id:
+          type: string
+          example: p-67890
+        name:
+          type: string
+        last_summary:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        faces_count:
+          type: integer
+          minimum: 0
+
+    PersonList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Person' }
+        next_cursor:
+          type: string
+          nullable: true
+
+    Face:
+      type: object
+      required: [face_id, person_id, created_at]
+      properties:
+        face_id:
+          type: string
+          example: f-12345
+        person_id:
+          type: string
+          example: p-67890
+        image_url:
+          type: string
+          format: uri
+          nullable: true
+          description: 画像の取得用URL（署名付きURLなど）
+        embedding_dim:
+          type: integer
+          example: 512
+        note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Encounter:
+      type: object
+      required: [encounter_id, person_id, recognized_at]
+      properties:
+        encounter_id:
+          type: string
+          example: e-abc123
+        person_id:
+          type: string
+          example: p-67890
+        recognized_at:
+          type: string
+          format: date-time
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        summary:
+          type: string
+          nullable: true
+
+    EncounterList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Encounter' }
+        next_cursor:
+          type: string
+          nullable: true
+
+    RecognitionCandidate:
+      type: object
+      properties:
+        person_id: { type: string, example: p-12345 }
+        name: { type: string, example: 山田 太郎 }
+        score: { type: number, format: float, minimum: 0, maximum: 1 }
+        last_summary: { type: string, nullable: true }
+
+    RecognitionResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [known, unknown]
+        best_match:
+          allOf:
+            - $ref: '#/components/schemas/RecognitionCandidate'
+          nullable: true
+        candidates:
+          type: array
+          items: { $ref: '#/components/schemas/RecognitionCandidate' }
+        created_encounter:
+          allOf:
+            - $ref: '#/components/schemas/Encounter'
+          nullable: true
+
+    Job:
+      type: object
+      required: [job_id, status, created_at]
+      properties:
+        job_id:
+          type: string
+          example: j-xyz789
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        created_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        result:
+          $ref: '#/components/schemas/TranscriptionResult'
+        error:
+          $ref: '#/components/schemas/Problem'
+
+    TranscriptionResult:
+      type: object
+      properties:
+        person_id: { type: string, example: p-12345, nullable: true }
+        transcript: { type: string }
+        summary: { type: string }
+        language: { type: string, example: ja }
+        duration_sec: { type: number, format: float }
+
