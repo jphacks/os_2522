@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -19,6 +20,8 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.daredakke.ml.face.FaceDetectionResult
 import com.example.daredakke.constants.AppConstants
 
@@ -29,34 +32,12 @@ import com.example.daredakke.constants.AppConstants
 @Composable
 fun FaceDetectionOverlay(
     detectionResults: List<FaceDetectionResult>,
-    onUnknownFaceTap: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
-    
-    Canvas(
-        modifier = modifier.pointerInput(detectionResults) {
-            detectTapGestures { tapOffset ->
-                // タップ位置が顔のバウンディングボックス内かチェック
-                detectionResults.forEach { result ->
-                    val boundingBox = result.boundingBox
-                    if (tapOffset.x >= boundingBox.left &&
-                        tapOffset.x <= boundingBox.right &&
-                        tapOffset.y >= boundingBox.top &&
-                        tapOffset.y <= boundingBox.bottom
-                    ) {
-                        result.trackingId?.let { trackingId ->
-                            // Unknown顔のみタップ可能
-                            if (result.recognitionInfo?.isRecognized != true) {
-                                onUnknownFaceTap(trackingId)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    ) {
+
+    Canvas(modifier = modifier) {
         detectionResults.forEach { result ->
             drawFaceBoundingBox(
                 result = result,
@@ -95,20 +76,18 @@ private fun DrawScope.drawFaceBoundingBox(
     )
     
     // Phase 2&4: 認識情報に基づくラベルテキスト（要約付き）
-    // 初対面: BBOXのみ（ラベルなし）
-    // 2回目以降（認識済み）: 名前 + 前回要約
     val recognitionInfo = result.recognitionInfo
-    val labelText = if (recognitionInfo?.isRecognized == true) {
-        // 2回目以降: 名前と要約を表示
-        val name = recognitionInfo.personName ?: "認識済み"
-        if (recognitionInfo.lastSummary != null) {
-            "$name\n前回: ${recognitionInfo.lastSummary}"
-        } else {
-            name
-        }
+
+    // 認識済みの顔のみラベルを表示
+    if (recognitionInfo == null || !recognitionInfo.isRecognized) {
+        return
+    }
+
+    val name = recognitionInfo.personName ?: "認識済み"
+    val labelText = if (recognitionInfo.lastSummary != null) {
+        "$name\n前回: ${recognitionInfo.lastSummary}"
     } else {
-        // 初対面: ラベルなし（BBOXのみ）
-        return // ラベル描画をスキップ
+        name
     }
     val textStyle = TextStyle(
         fontSize = AppConstants.BBOX_TEXT_SIZE.sp,
@@ -122,34 +101,41 @@ private fun DrawScope.drawFaceBoundingBox(
         textLayoutResult.size.height.toFloat()
     )
     
-    // ラベル背景の位置とサイズ
-    val labelBackgroundTop = boundingBox.top - textSize.height - 8f
-    val labelBackgroundLeft = boundingBox.left
-    
-    // ラベル背景を描画
-    drawRect(
-        color = boxColor.copy(alpha = 0.8f),
-        topLeft = Offset(labelBackgroundLeft, labelBackgroundTop),
-        size = androidx.compose.ui.geometry.Size(
-            textSize.width + 16f,
-            textSize.height + 8f
+    // ラベル背景の位置とサイズ（画面外チェック）
+    val labelBackgroundTop = (boundingBox.top - textSize.height - 8f).coerceAtLeast(0f)
+    val labelBackgroundLeft = boundingBox.left.coerceAtLeast(0f)
+    val labelWidth = (textSize.width + 16f).coerceAtMost(size.width - labelBackgroundLeft)
+    val labelHeight = (textSize.height + 8f).coerceAtMost(size.height - labelBackgroundTop)
+
+    // 幅と高さが正の値の場合のみ描画
+    if (labelWidth > 0f && labelHeight > 0f) {
+        // ラベル背景を描画
+        drawRect(
+            color = boxColor.copy(alpha = 0.8f),
+            topLeft = Offset(labelBackgroundLeft, labelBackgroundTop),
+            size = androidx.compose.ui.geometry.Size(labelWidth, labelHeight)
         )
-    )
-    
-    // ラベルテキストを描画
-    drawText(
-        textMeasurer = textMeasurer,
-        text = labelText,
-        style = textStyle,
-        topLeft = Offset(
-            labelBackgroundLeft + 8f,
-            labelBackgroundTop + 4f
+
+        // ラベルテキストを描画
+        drawText(
+            textMeasurer = textMeasurer,
+            text = labelText,
+            style = textStyle,
+            topLeft = Offset(
+                labelBackgroundLeft + 8f,
+                labelBackgroundTop + 4f
+            ),
+            size = androidx.compose.ui.geometry.Size(
+                width = (labelWidth - 16f).coerceAtLeast(1f),
+                height = (labelHeight - 8f).coerceAtLeast(1f)
+            )
         )
-    )
+    }
 }
 
 /**
  * 名前入力ダイアログ
+ * カメラを無効化しないためにDialogを使用
  */
 @Composable
 fun NameInputDialog(
@@ -158,45 +144,80 @@ fun NameInputDialog(
     onSave: (String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
-    
-    AlertDialog(
+
+    Dialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text("名前を入力してください")
-        },
-        text = {
-            Column {
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "名前を入力してください",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
                     text = "Unknown #$trackingId の名前を入力してください",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+
+                Spacer(modifier = Modifier.height(24.dp))
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("名前") },
-                    singleLine = true
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (name.isNotBlank()) {
-                        onSave(name.trim())
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("キャンセル")
                     }
-                },
-                enabled = name.isNotBlank()
-            ) {
-                Text("保存")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("キャンセル")
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                onSave(name.trim())
+                            }
+                        },
+                        enabled = name.isNotBlank()
+                    ) {
+                        Text("保存")
+                    }
+                }
             }
         }
-    )
+    }
 }
 
 /**

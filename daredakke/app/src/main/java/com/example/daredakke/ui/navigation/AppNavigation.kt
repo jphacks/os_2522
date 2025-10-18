@@ -8,6 +8,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.daredakke.ui.camera.CameraScreen
 import com.example.daredakke.ui.person.PersonListScreen
 import com.example.daredakke.ui.person.PersonDetailScreen
+import com.example.daredakke.ui.splash.SplashScreen
+
 
 /**
  * アプリのナビゲーション管理

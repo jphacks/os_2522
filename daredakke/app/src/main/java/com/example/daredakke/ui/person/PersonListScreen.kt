@@ -28,12 +28,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import com.example.daredakke.R
 import java.text.SimpleDateFormat
 import java.util.*
 import java.io.File
@@ -144,25 +146,47 @@ private fun PersonCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 顔画像（プレースホルダー）
-            Card(
-                modifier = Modifier.size(60.dp),
-                shape = CircleShape,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = "顔写真",
-                        modifier = Modifier.size(30.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+            if (LocalInspectionMode.current) {
+                // Previewではアイコンを表示
+                Card(
+                    modifier = Modifier.size(60.dp),
+                    shape = CircleShape,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = "顔写真",
+                            modifier = Modifier.size(30.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
+            } else {
+                // 実行時は画像を表示
+                val painter = rememberAsyncImagePainter(
+                    ImageRequest.Builder(LocalContext.current)
+                        .data(data = person.profileImagePath?.let { File(it) })
+                        .apply(block = fun ImageRequest.Builder.() {
+                            crossfade(true)
+                            error(R.drawable.ic_launcher_foreground) // エラー時のプレースホルダー
+                            fallback(R.drawable.ic_launcher_foreground) // nullの場合のプレースホルダー
+                        }).build()
+                )
+
+                Image(
+                    painter = painter,
+                    contentDescription = "顔写真",
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
             }
             
             Spacer(modifier = Modifier.width(16.dp))
