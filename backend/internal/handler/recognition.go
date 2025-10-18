@@ -6,16 +6,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jphacks/os_2522/backend/internal/errors"
-	"github.com/jphacks/os_2522/backend/internal/service"
 )
 
 // RecognitionHandler handles face recognition requests
 type RecognitionHandler struct {
-	recognitionService *service.RecognitionService
+	recognitionService RecognitionServiceInterface
 }
 
 // NewRecognitionHandler creates a new RecognitionHandler
-func NewRecognitionHandler(recognitionService *service.RecognitionService) *RecognitionHandler {
+func NewRecognitionHandler(recognitionService RecognitionServiceInterface) *RecognitionHandler {
 	return &RecognitionHandler{recognitionService: recognitionService}
 }
 

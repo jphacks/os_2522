@@ -6,16 +6,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jphacks/os_2522/backend/internal/errors"
-	"github.com/jphacks/os_2522/backend/internal/service"
 )
 
 // EncounterHandler handles encounter log requests
 type EncounterHandler struct {
-	encounterService *service.EncounterService
+	encounterService EncounterServiceInterface
 }
 
 // NewEncounterHandler creates a new EncounterHandler
-func NewEncounterHandler(encounterService *service.EncounterService) *EncounterHandler {
+func NewEncounterHandler(encounterService EncounterServiceInterface) *EncounterHandler {
 	return &EncounterHandler{encounterService: encounterService}
 }
 
