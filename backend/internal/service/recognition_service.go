@@ -1,12 +1,9 @@
 package service
 
 import (
-	"encoding/binary"
-	"math"
-	"mime/multipart"
-
 	"github.com/jphacks/os_2522/backend/internal/models"
 	"github.com/jphacks/os_2522/backend/internal/repository"
+	"github.com/jphacks/os_2522/backend/internal/utils"
 )
 
 // RecognitionService handles face recognition business logic
@@ -29,14 +26,19 @@ func NewRecognitionService(
 	}
 }
 
-// Recognize performs face recognition
-func (s *RecognitionService) Recognize(file *multipart.FileHeader, topK int, minScore float64) (*models.RecognitionResponse, error) {
-	// TODO: Generate actual face embedding from uploaded image
-	// For now, use a mock embedding
-	queryEmbedding := generateMockEmbedding(512)
+// Recognize performs face recognition using client-provided embedding
+func (s *RecognitionService) Recognize(req *models.RecognitionRequest) (*models.RecognitionResponse, error) {
+	topK := req.TopK
+	if topK == 0 {
+		topK = 3 // Default
+	}
+	minScore := req.MinScore
+	if minScore == 0 {
+		minScore = 0.6 // Default
+	}
 
 	// Retrieve all face embeddings from database
-	faces, err := s.faceRepo.FindAllEmbeddings()
+	faceEntities, err := s.faceRepo.FindAllEmbeddings()
 	if err != nil {
 		return nil, err
 	}
@@ -49,12 +51,19 @@ func (s *RecognitionService) Recognize(file *multipart.FileHeader, topK int, min
 	}
 
 	var scores []candidateScore
-	for _, face := range faces {
-		score := cosineSimilarity(queryEmbedding, face.Embedding)
+	for _, faceEntity := range faceEntities {
+		// Convert stored bytes back to float32
+		storedEmbedding := utils.BytesToFloat32Slice(faceEntity.Embedding)
+		if storedEmbedding == nil {
+			continue // Skip invalid embeddings
+		}
+
+		// Calculate cosine similarity
+		score := utils.CosineSimilarity(req.Embedding, storedEmbedding)
 		if score >= minScore {
 			scores = append(scores, candidateScore{
-				personID: face.PersonID,
-				faceID:   face.FaceID,
+				personID: faceEntity.PersonID,
+				faceID:   faceEntity.FaceID,
 				score:    score,
 			})
 		}
@@ -105,29 +114,4 @@ func (s *RecognitionService) Recognize(file *multipart.FileHeader, topK int, min
 		BestMatch:  bestMatch,
 		Candidates: candidates,
 	}, nil
-}
-
-// cosineSimilarity calculates cosine similarity between two embeddings
-func cosineSimilarity(a, b []byte) float64 {
-	if len(a) != len(b) {
-		return 0
-	}
-
-	dim := len(a) / 4 // Assuming float32 (4 bytes each)
-	var dotProduct, normA, normB float64
-
-	for i := 0; i < dim; i++ {
-		valA := math.Float32frombits(binary.LittleEndian.Uint32(a[i*4 : (i+1)*4]))
-		valB := math.Float32frombits(binary.LittleEndian.Uint32(b[i*4 : (i+1)*4]))
-
-		dotProduct += float64(valA * valB)
-		normA += float64(valA * valA)
-		normB += float64(valB * valB)
-	}
-
-	if normA == 0 || normB == 0 {
-		return 0
-	}
-
-	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
 }

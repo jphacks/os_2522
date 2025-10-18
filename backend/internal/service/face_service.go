@@ -1,15 +1,13 @@
 package service
 
 import (
-	"encoding/binary"
 	"fmt"
-	"math"
-	"mime/multipart"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jphacks/os_2522/backend/internal/models"
 	"github.com/jphacks/os_2522/backend/internal/repository"
+	"github.com/jphacks/os_2522/backend/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -27,8 +25,8 @@ func NewFaceService(faceRepo *repository.FaceRepository, personRepo *repository.
 	}
 }
 
-// AddFace adds a new face to a person
-func (s *FaceService) AddFace(personID string, file *multipart.FileHeader, note *string) (*models.Face, error) {
+// AddFace adds a new face to a person with client-provided embedding
+func (s *FaceService) AddFace(personID string, req *models.FaceEmbeddingRequest) (*models.Face, error) {
 	// Verify person exists
 	_, err := s.personRepo.FindByID(personID)
 	if err != nil {
@@ -41,17 +39,22 @@ func (s *FaceService) AddFace(personID string, file *multipart.FileHeader, note 
 	// Generate face ID
 	faceID := fmt.Sprintf("f-%s", uuid.New().String()[:8])
 
-	// TODO: Generate actual face embedding from image
-	// For now, generate a mock embedding (512-dimensional)
-	embedding := generateMockEmbedding(512)
+	// Convert float32 slice to bytes
+	embeddingBytes := utils.Float32SliceToBytes(req.Embedding)
+
+	// Calculate checksum
+	checksum := utils.CalculateEmbeddingChecksum(req.Embedding)
 
 	entity := &repository.FaceEntity{
-		FaceID:       faceID,
-		PersonID:     personID,
-		Embedding:    embedding,
-		EmbeddingDim: 512,
-		Note:         note,
-		CreatedAt:    time.Now(),
+		FaceID:            faceID,
+		PersonID:          personID,
+		Embedding:         embeddingBytes,
+		EmbeddingDim:      req.EmbeddingDim,
+		ModelVersion:      &req.ModelVersion,
+		EmbeddingChecksum: &checksum,
+		SourceImageHash:   req.SourceImageHash,
+		Note:              req.Note,
+		CreatedAt:         time.Now(),
 	}
 
 	if err := s.faceRepo.Create(entity); err != nil {
@@ -59,17 +62,19 @@ func (s *FaceService) AddFace(personID string, file *multipart.FileHeader, note 
 	}
 
 	return &models.Face{
-		FaceID:       entity.FaceID,
-		PersonID:     entity.PersonID,
-		ImageURL:     entity.ImagePath,
-		EmbeddingDim: entity.EmbeddingDim,
-		Note:         entity.Note,
-		CreatedAt:    entity.CreatedAt,
+		FaceID:            entity.FaceID,
+		PersonID:          entity.PersonID,
+		ImageURL:          entity.ImagePath,
+		EmbeddingDim:      entity.EmbeddingDim,
+		ModelVersion:      entity.ModelVersion,
+		EmbeddingChecksum: entity.EmbeddingChecksum,
+		Note:              entity.Note,
+		CreatedAt:         entity.CreatedAt,
 	}, nil
 }
 
 // ListFaces retrieves all faces for a person
-func (s *FaceService) ListFaces(personID string) (*models.FaceList, error) {
+func (s *FaceService) ListFaces(personID string, includeEmbedding bool) (*models.FaceList, error) {
 	// Verify person exists
 	_, err := s.personRepo.FindByID(personID)
 	if err != nil {
@@ -86,14 +91,23 @@ func (s *FaceService) ListFaces(personID string) (*models.FaceList, error) {
 
 	faces := make([]models.Face, len(entities))
 	for i, entity := range entities {
-		faces[i] = models.Face{
-			FaceID:       entity.FaceID,
-			PersonID:     entity.PersonID,
-			ImageURL:     entity.ImagePath,
-			EmbeddingDim: entity.EmbeddingDim,
-			Note:         entity.Note,
-			CreatedAt:    entity.CreatedAt,
+		face := models.Face{
+			FaceID:            entity.FaceID,
+			PersonID:          entity.PersonID,
+			ImageURL:          entity.ImagePath,
+			EmbeddingDim:      entity.EmbeddingDim,
+			ModelVersion:      entity.ModelVersion,
+			EmbeddingChecksum: entity.EmbeddingChecksum,
+			Note:              entity.Note,
+			CreatedAt:         entity.CreatedAt,
 		}
+
+		// Include embedding vector if requested
+		if includeEmbedding && entity.Embedding != nil {
+			face.Embedding = utils.BytesToFloat32Slice(entity.Embedding)
+		}
+
+		faces[i] = face
 	}
 
 	return &models.FaceList{
@@ -117,15 +131,4 @@ func (s *FaceService) DeleteFace(personID, faceID string) error {
 	}
 
 	return s.faceRepo.Delete(faceID)
-}
-
-// generateMockEmbedding generates a mock embedding vector
-func generateMockEmbedding(dim int) []byte {
-	// Create a normalized random vector
-	buf := make([]byte, dim*4) // 4 bytes per float32
-	for i := 0; i < dim; i++ {
-		val := float32(0.5) // Mock value
-		binary.LittleEndian.PutUint32(buf[i*4:(i+1)*4], math.Float32bits(val))
-	}
-	return buf
 }

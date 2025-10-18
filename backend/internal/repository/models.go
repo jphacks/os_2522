@@ -28,14 +28,17 @@ func (PersonEntity) TableName() string {
 
 // FaceEntity represents a face image in the database
 type FaceEntity struct {
-	FaceID       string         `gorm:"primaryKey;type:varchar(50)"`
-	PersonID     string         `gorm:"type:varchar(50);not null;index"`
-	ImagePath    *string        `gorm:"type:varchar(500)"`
-	Embedding    []byte         `gorm:"type:bytea"` // Store as binary for flexibility
-	EmbeddingDim int            `gorm:"not null;default:512"`
-	Note         *string        `gorm:"type:text"`
-	CreatedAt    time.Time      `gorm:"not null;index"`
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	FaceID            string         `gorm:"primaryKey;type:varchar(50)"`
+	PersonID          string         `gorm:"type:varchar(50);not null;index"`
+	ImagePath         *string        `gorm:"type:varchar(500)"` // Not used in client-side recognition
+	Embedding         []byte         `gorm:"type:bytea"`        // Store as binary for flexibility
+	EmbeddingDim      int            `gorm:"not null;default:512"`
+	ModelVersion      *string        `gorm:"type:varchar(100)"` // e.g., "facenet-tflite-v1"
+	EmbeddingChecksum *string        `gorm:"type:varchar(100)"` // e.g., "sha256:abc123..."
+	SourceImageHash   *string        `gorm:"type:varchar(100)"` // Original image hash (optional)
+	Note              *string        `gorm:"type:text"`
+	CreatedAt         time.Time      `gorm:"not null;index"`
+	DeletedAt         gorm.DeletedAt `gorm:"index"`
 
 	// Relations
 	Person PersonEntity `gorm:"foreignKey:PersonID"`
