@@ -298,11 +298,11 @@ func TestRecognitionHandler_PostRecognizeImage(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
-			name:        "invalid top_k",
-			formData:    map[string]string{"top_k": "invalid"},
-			fileName:    "test.jpg",
-			fileContent: "fake-image-data",
-			mockSetup:   func(mrs *MockRecognitionService, mfes *MockFaceExtractionService) {},
+			name:           "invalid top_k",
+			formData:       map[string]string{"top_k": "invalid"},
+			fileName:       "test.jpg",
+			fileContent:    "fake-image-data",
+			mockSetup:      func(mrs *MockRecognitionService, mfes *MockFaceExtractionService) {},
 			expectedStatus: http.StatusBadRequest,
 		},
 		{

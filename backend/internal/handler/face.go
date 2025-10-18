@@ -80,7 +80,7 @@ func (h *FaceHandler) AddFaceImage(c *gin.Context) {
 	// Create a request for the existing AddFace service method
 	req := models.FaceEmbeddingRequest{
 		Embedding:    embedding,
-		EmbeddingDim: 512,                       // Assuming 512, should be a constant
+		EmbeddingDim: 512,                 // Assuming 512, should be a constant
 		ModelVersion: "facenet-tflite-v1", // This should probably come from the extraction service
 		Note:         notePtr,
 	}

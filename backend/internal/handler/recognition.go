@@ -82,7 +82,7 @@ func (h *RecognitionHandler) PostRecognizeImage(c *gin.Context) {
 	// Create a recognition request similar to the embedding-based endpoint
 	req := &models.RecognitionRequest{
 		Embedding:    embedding,
-		EmbeddingDim: 512, // Assuming 512, should be a constant
+		EmbeddingDim: 512,                 // Assuming 512, should be a constant
 		ModelVersion: "facenet-tflite-v1", // This should probably come from the extraction service
 		TopK:         topK,
 		MinScore:     minScore,
