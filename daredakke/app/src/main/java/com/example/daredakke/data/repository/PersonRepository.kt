@@ -1,13 +1,13 @@
 package com.example.daredakke.data.repository
 
-import com.example.arsome.data.database.dao.EncounterDao
-import com.example.arsome.data.entities.Person
-import com.example.arsome.data.entities.FaceEmbedding
-import com.example.arsome.data.entities.Encounter
-import com.example.arsome.constants.AppConstants
-import com.example.arsome.data.models.PersonSummary
-import com.example.daredakke.data.database.dao.FaceEmbeddingDao
 import com.example.daredakke.data.database.dao.PersonDao
+import com.example.daredakke.data.database.dao.FaceEmbeddingDao
+import com.example.daredakke.data.database.dao.EncounterDao
+import com.example.daredakke.data.entities.Person
+import com.example.daredakke.data.entities.FaceEmbedding
+import com.example.daredakke.data.entities.Encounter
+import com.example.daredakke.constants.AppConstants
+import com.example.daredakke.data.models.PersonSummary
 import kotlinx.coroutines.flow.Flow
 
 /**

@@ -3,7 +3,7 @@ package com.example.daredakke.ui.person
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.daredakke.data.DaredakkeDatabase
+import com.example.daredakke.daredakkeApplication
 import com.example.daredakke.data.entities.Person
 import com.example.daredakke.data.entities.Encounter
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +19,8 @@ class PersonDetailViewModel(
     private val personId: Long
 ) : AndroidViewModel(application) {
     
-    private val personRepository = DaredakkeDatabase.getDatabase(application).personDao()
+    private val app = application as daredakkeApplication
+    private val personRepository = app.personRepository
     
     private val _person = MutableStateFlow<Person?>(null)
     val person: StateFlow<Person?> = _person.asStateFlow()

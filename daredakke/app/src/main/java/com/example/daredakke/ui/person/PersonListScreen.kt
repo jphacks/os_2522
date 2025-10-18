@@ -1,4 +1,4 @@
-package com.example.arsome.ui.person
+package com.example.daredakke.ui.person
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable

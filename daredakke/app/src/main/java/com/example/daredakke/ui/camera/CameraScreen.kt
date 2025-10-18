@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModel
+import com.example.daredakke.ml.face.FaceDetector
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -44,11 +45,11 @@ fun CameraScreen(
         }
     )
     val lifecycleOwner = LocalLifecycleOwner.current
-
+    
     // 権限の管理
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     val audioPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
-
+    
     LaunchedEffect(Unit) {
         if (!cameraPermissionState.status.isGranted) {
             cameraPermissionState.launchPermissionRequest()
@@ -57,7 +58,7 @@ fun CameraScreen(
             audioPermissionState.launchPermissionRequest()
         }
     }
-
+    
     if (cameraPermissionState.status.isGranted && audioPermissionState.status.isGranted) {
         CameraPreviewWithOverlay(
             viewModel = viewModel,
@@ -85,7 +86,7 @@ fun CameraScreen(
                         Text("カメラ権限を許可")
                     }
                 }
-
+                
                 if (!audioPermissionState.status.isGranted) {
                     Text(
                         text = "音声録音権限が必要です",
@@ -110,28 +111,28 @@ private fun CameraPreviewWithOverlay(
 ) {
     val context = LocalContext.current
     var previewView: PreviewView? by remember { mutableStateOf(null) }
-
+    
     // 顔検出結果の監視
     val detectionResults by viewModel.detectionResults.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
     val showNameDialog by viewModel.showNameDialog.collectAsState()
     val isUsingFrontCamera by viewModel.isUsingFrontCamera.collectAsState()
-
+    
     DisposableEffect(lifecycleOwner, isUsingFrontCamera) {
         val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
         val faceDetector = viewModel.createIntegratedFaceDetector()
-
+        
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
-
+            
             // プレビューの設定
             val preview = Preview.Builder()
                 .build()
                 .also { preview ->
                     previewView?.let { preview.setSurfaceProvider(it.surfaceProvider) }
                 }
-
+            
             // 画像解析の設定（顔検出用）
             val imageAnalyzer = ImageAnalysis.Builder()
                 .setTargetResolution(android.util.Size(640, 480))
@@ -140,18 +141,18 @@ private fun CameraPreviewWithOverlay(
                 .also { analyzer ->
                     analyzer.setAnalyzer(cameraExecutor, faceDetector)
                 }
-
+            
             // カメラセレクタ（ViewModelの状態に応じて選択）
             val cameraSelector = if (isUsingFrontCamera) {
                 CameraSelector.DEFAULT_FRONT_CAMERA
             } else {
                 CameraSelector.DEFAULT_BACK_CAMERA
             }
-
+            
             try {
                 // 既存のバインドを解除
                 cameraProvider.unbindAll()
-
+                
                 // カメラをライフサイクルにバインド
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner,
@@ -159,15 +160,15 @@ private fun CameraPreviewWithOverlay(
                     preview,
                     imageAnalyzer
                 )
-
+                
                 // ViewModelに顔検出器を設定
                 viewModel.setFaceDetector(faceDetector)
-
+                
                 // カメラの向きを設定
                 val isFrontCamera = (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA)
                 faceDetector.setCameraFacing(isFrontCamera)
                 println("Camera facing: ${if (isFrontCamera) "FRONT" else "BACK"}")
-
+                
                 // プレビューサイズを顔検出器に設定（レイアウト後）
                 previewView?.post {
                     previewView?.let { preview ->
@@ -180,22 +181,22 @@ private fun CameraPreviewWithOverlay(
                         }
                     }
                 }
-
+                
             } catch (exc: Exception) {
                 println("Camera binding failed: ${exc.message}")
             }
-
+            
         }, ContextCompat.getMainExecutor(context))
-
+        
         onDispose {
             faceDetector.release()
             cameraExecutor.shutdown()
         }
     }
-
+    
     Box(modifier = Modifier.fillMaxSize()) {
         // カメラプレビュー
-        AndroidView(
+    AndroidView(
             factory = { ctx ->
                 PreviewView(ctx).also { preview ->
                     previewView = preview
@@ -203,7 +204,7 @@ private fun CameraPreviewWithOverlay(
             },
             modifier = Modifier.fillMaxSize()
         )
-
+        
         // 顔検出結果のオーバーレイ
         FaceDetectionOverlay(
             detectionResults = detectionResults,
@@ -212,7 +213,7 @@ private fun CameraPreviewWithOverlay(
             },
             modifier = Modifier.fillMaxSize()
         )
-
+        
         // デバッグ情報表示（開発中のみ）
         if (detectionResults.isNotEmpty()) {
             Card(
@@ -239,7 +240,7 @@ private fun CameraPreviewWithOverlay(
                 }
             }
         }
-
+        
         // 録音インジケータ
         RecordingIndicator(
             isRecording = isRecording,
@@ -247,7 +248,7 @@ private fun CameraPreviewWithOverlay(
                 .align(Alignment.TopStart)
                 .padding(16.dp)
         )
-
+        
         // カメラ切り替えボタン
         FloatingActionButton(
             onClick = { viewModel.toggleCamera() },
@@ -257,7 +258,7 @@ private fun CameraPreviewWithOverlay(
         ) {
             Text(if (isUsingFrontCamera) "📷" else "🤳")
         }
-
+        
         // 人物一覧ボタン
         FloatingActionButton(
             onClick = onNavigateToPersonList,
@@ -268,7 +269,7 @@ private fun CameraPreviewWithOverlay(
             Text("👥")
         }
     }
-
+    
     // 名前入力ダイアログ
     showNameDialog?.let { trackingId ->
         NameInputDialog(
@@ -279,5 +280,5 @@ private fun CameraPreviewWithOverlay(
             }
         )
     }
-
+    
 }

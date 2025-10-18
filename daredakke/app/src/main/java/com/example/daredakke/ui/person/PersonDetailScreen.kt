@@ -1,6 +1,5 @@
 package com.example.daredakke.ui.person
 
-import android.app.Application
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,7 +44,7 @@ fun PersonDetailScreen(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return PersonDetailViewModel(
-                    context.applicationContext as Application,
+                    context.applicationContext as android.app.Application,
                     personId
                 ) as T
             }

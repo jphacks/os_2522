@@ -1,9 +1,9 @@
-package com.example.arsome.ui.person
+package com.example.daredakke.ui.person
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.arsome.ARsomeApplication
+import com.example.daredakke.daredakkeApplication
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
  */
 class PersonListViewModel(application: Application) : AndroidViewModel(application) {
     
-    private val app = application as ARsomeApplication
+    private val app = application as daredakkeApplication
     private val personRepository = app.personRepository
     
     private val _persons = MutableStateFlow<List<PersonListItem>>(emptyList())

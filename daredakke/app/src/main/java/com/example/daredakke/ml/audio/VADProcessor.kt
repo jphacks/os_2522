@@ -1,6 +1,6 @@
-package com.example.arsome.ml.audio
+package com.example.daredakke.ml.audio
 
-import com.example.arsome.constants.AppConstants
+import com.example.daredakke.constants.AppConstants
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

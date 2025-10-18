@@ -41,7 +41,7 @@ object AppConstants {
     const val GEMINI_SUMMARY_LANGUAGE = "ja" // 要約言語
     
     // データベース
-    const val DATABASE_NAME = "daredakke_database"
+    const val DATABASE_NAME = "arsome_database"
     const val DATABASE_VERSION = 2
     
     // UI
@@ -60,7 +60,7 @@ object AppConstants {
     const val RETRY_DELAY_MS = 1000L
     
     // セキュリティ
-    const val ENCRYPTION_KEY_ALIAS = "DaredakkeEncryptionKey"
-    const val SHARED_PREFS_NAME = "DaredakkePrefs"
-    const val SHARED_PREFS_ENCRYPTED_NAME = "DaredakkeEncryptedPrefs"
+    const val ENCRYPTION_KEY_ALIAS = "ARsomeEncryptionKey"
+    const val SHARED_PREFS_NAME = "ARsomePrefs"
+    const val SHARED_PREFS_ENCRYPTED_NAME = "ARsomeEncryptedPrefs"
 }

@@ -1,7 +1,6 @@
 package com.example.daredakke.data.database.dao
 
 import androidx.room.*
-import androidx.room.Dao
 import com.example.daredakke.data.entities.Person
 import com.example.daredakke.data.models.PersonSummary
 import kotlinx.coroutines.flow.Flow

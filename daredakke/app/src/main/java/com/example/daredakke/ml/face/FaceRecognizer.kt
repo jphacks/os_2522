@@ -1,8 +1,8 @@
-package com.example.arsome.ml.face
+package com.example.daredakke.ml.face
 
-import com.example.arsome.constants.AppConstants
-import com.example.arsome.data.entities.FaceEmbedding
-import com.example.arsome.data.repository.PersonRepository
+import com.example.daredakke.constants.AppConstants
+import com.example.daredakke.data.entities.FaceEmbedding
+import com.example.daredakke.data.repository.PersonRepository
 import kotlin.math.sqrt
 
 /**

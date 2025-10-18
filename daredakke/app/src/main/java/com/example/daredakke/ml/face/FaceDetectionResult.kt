@@ -1,16 +1,13 @@
-package com.example.arsome.ml.face
+package com.example.daredakke.ml.face
 
-import android.hardware.camera2.params.Face
-import android.media.FaceDetector
 import androidx.compose.ui.geometry.Rect
-import com.google.mlkit.vision.face.Face
 
 /**
  * 顔検出結果を表すデータクラス
  * Phase 2で認識情報を追加
  */
 data class FaceDetectionResult(
-    val face: Face,
+    val face: com.google.mlkit.vision.face.Face?,
     val boundingBox: Rect,
     val trackingId: Int?,
     val isStable: Boolean = false,
@@ -52,13 +49,13 @@ data class FaceTrackingInfo(
         minSize: Float,
         currentTime: Long = System.currentTimeMillis()
     ): Boolean {
-        val isValidSize = minSize >= com.example.arsome.constants.AppConstants.MIN_FACE_SIZE_PX
+        val isValidSize = minSize >= com.example.daredakke.constants.AppConstants.MIN_FACE_SIZE_PX
         val isValidMovement = lastCenterPoint?.let { lastCenter ->
             val distance = kotlin.math.sqrt(
                 (currentCenter.first - lastCenter.first).let { it * it } +
                 (currentCenter.second - lastCenter.second).let { it * it }
             )
-            distance <= com.example.arsome.constants.AppConstants.MAX_FACE_CENTER_MOVEMENT_PX
+            distance <= com.example.daredakke.constants.AppConstants.MAX_FACE_CENTER_MOVEMENT_PX
         } ?: true
         
         val meetsStabilityCriteria = isValidSize && isValidMovement
@@ -68,7 +65,7 @@ data class FaceTrackingInfo(
                 stableStartTime = currentTime
             }
             val stableDuration = currentTime - (stableStartTime ?: currentTime)
-            isCurrentlyStable = stableDuration >= com.example.arsome.constants.AppConstants.FACE_STABILITY_DURATION_MS
+            isCurrentlyStable = stableDuration >= com.example.daredakke.constants.AppConstants.FACE_STABILITY_DURATION_MS
         } else {
             stableStartTime = null
             isCurrentlyStable = false

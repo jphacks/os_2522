@@ -1,4 +1,4 @@
-package com.example.arsome.api
+package com.example.daredakke.api
 
 import retrofit2.Response
 import retrofit2.http.Body

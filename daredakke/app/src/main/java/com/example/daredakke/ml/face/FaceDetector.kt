@@ -2,6 +2,7 @@ package com.example.daredakke.ml.face
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
@@ -167,7 +168,8 @@ class FaceDetector(
             bottom = bbox.bottom.toFloat()
         )
     }
-    
+
+    @androidx.annotation.OptIn(ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
         val inputImage = InputImage.fromMediaImage(
             imageProxy.image!!,

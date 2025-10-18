@@ -13,7 +13,7 @@ import com.example.daredakke.data.database.dao.EncounterDao
 import com.example.daredakke.constants.AppConstants
 
 /**
- * ARsomeアプリのメインデータベース
+ * daredakkeアプリのメインデータベース
  * SQLCipherまたはJetpack Securityで暗号化する予定
  */
 @Database(
@@ -21,7 +21,7 @@ import com.example.daredakke.constants.AppConstants
     version = AppConstants.DATABASE_VERSION,
     exportSchema = false
 )
-abstract class ARsomeDatabase : RoomDatabase() {
+abstract class daredakkeDatabase : RoomDatabase() {
     
     abstract fun personDao(): PersonDao
     abstract fun faceEmbeddingDao(): FaceEmbeddingDao
@@ -29,13 +29,13 @@ abstract class ARsomeDatabase : RoomDatabase() {
     
     companion object {
         @Volatile
-        private var INSTANCE: ARsomeDatabase? = null
+        private var INSTANCE: daredakkeDatabase? = null
         
-        fun getDatabase(context: Context): ARsomeDatabase {
+        fun getDatabase(context: Context): daredakkeDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
-                    ARsomeDatabase::class.java,
+                    daredakkeDatabase::class.java,
                     AppConstants.DATABASE_NAME
                 )
                 .fallbackToDestructiveMigration() // 開発中のみ

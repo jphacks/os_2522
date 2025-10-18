@@ -1,4 +1,4 @@
-package com.example.arsome.ml.face
+package com.example.daredakke.ml.face
 
 import android.content.Context
 import android.graphics.Bitmap
