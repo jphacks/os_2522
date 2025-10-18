@@ -39,7 +39,8 @@ data class FaceTrackingInfo(
     var recognizedPersonId: Long? = null,
     var unknownId: Int? = null,
     var cachedPersonInfo: CachedPersonInfo? = null, // Phase 4: 人物情報キャッシュ
-    var hasAttemptedRecognition: Boolean = false
+    var hasAttemptedRecognition: Boolean = false,
+    var isRecognitionInProgress: Boolean = false // 認識処理中フラグ（レースコンディション対策）
 ) {
     /**
      * 顔が安定しているかを判定

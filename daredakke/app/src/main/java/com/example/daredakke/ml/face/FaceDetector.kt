@@ -245,13 +245,23 @@ class FaceDetector(
                         }
                         
                         // Unknown IDの割り当て（認識されていない場合）
-                        if (trackingInfo.recognizedPersonId == null && trackingInfo.unknownId == null && trackingInfo.hasAttemptedRecognition) {
+                        // 安定した顔のみ処理し、認識処理中は待機してレースコンディションを回避
+                        if (isStable &&
+                            trackingInfo.recognizedPersonId == null &&
+                            trackingInfo.unknownId == null &&
+                            trackingInfo.hasAttemptedRecognition &&
+                            !trackingInfo.isRecognitionInProgress) {
                             trackingInfo.unknownId = unknownIdCounter++
+                            println("🆔 Assigned UnknownId #${trackingInfo.unknownId} to trackingId=$trackingId")
                         }
                         
-                        // 認識情報の作成
-                        val recognitionInfo = createRecognitionInfo(trackingInfo)
-                        
+                        // 認識情報の作成（安定した顔のみ）
+                        val recognitionInfo = if (isStable) {
+                            createRecognitionInfo(trackingInfo)
+                        } else {
+                            null // 不安定な顔には認識情報を表示しない
+                        }
+
                         val result = FaceDetectionResult(
                             face = face,
                             boundingBox = boundingBox,
@@ -479,34 +489,41 @@ class FaceDetector(
         }
         
         lastEmbeddingExtractionTime[trackingId] = currentTime
-        
+
+        // 認識処理中フラグを設定（レースコンディション対策）
+        trackingInfo.isRecognitionInProgress = true
+
         // 非同期で埋め込み抽出と認識処理を実行
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // ImageProxyからBitmapを作成
                 val bitmap = imageProxyToBitmap(imageProxy)
-                
+
                 // 顔サムネイルをキャッシュ
                 captureFaceThumbnail(bitmap, face)?.let { thumbnail ->
                     cacheFaceThumbnail(trackingId, thumbnail)
                 }
-                
+
                 // 埋め込み抽出
                 val embedding = embeddingExtractor!!.extractEmbedding(bitmap, face)
                 if (embedding != null) {
                     // 最後に抽出した埋め込みを保存
                     lastExtractedEmbeddings[trackingId] = embedding
-                    
+
                     // 認識処理
                     val recognitionResult = faceRecognizer!!.recognizeFace(embedding)
-                    
+
+                    println("🔍 Recognition result for trackingId=$trackingId: $recognitionResult")
+
                     // 結果をメインスレッドで処理
                     CoroutineScope(Dispatchers.Main).launch {
                         trackingInfo.hasAttemptedRecognition = true
+                        trackingInfo.isRecognitionInProgress = false // 処理完了
                         when (recognitionResult) {
                             is RecognitionResult.Recognized -> {
                                 trackingInfo.recognizedPersonId = recognitionResult.personId
                                 trackingInfo.unknownId = null
+                                println("✅ Recognized as personId=${recognitionResult.personId}, confidence=${recognitionResult.confidence}")
                                 
                                 // Phase 4: 人物情報と最新要約をキャッシュ
                                 CoroutineScope(Dispatchers.IO).launch {
@@ -538,12 +555,25 @@ class FaceDetector(
                             }
                             is RecognitionResult.Unknown -> {
                                 // Unknown状態を維持（ユーザーの命名を待つ）
+                                println("❓ Not recognized (similarity below threshold)")
                             }
                         }
                     }
+                } else {
+                    // 埋め込み抽出失敗時も処理完了フラグを立てる
+                    CoroutineScope(Dispatchers.Main).launch {
+                        trackingInfo.hasAttemptedRecognition = true
+                        trackingInfo.isRecognitionInProgress = false
+                        println("⚠️ Failed to extract embedding for trackingId=$trackingId")
+                    }
                 }
             } catch (e: Exception) {
-                println("Failed to process face for recognition: ${e.message}")
+                println("❌ Failed to process face for recognition: ${e.message}")
+                // エラー時も処理完了フラグを立てる
+                CoroutineScope(Dispatchers.Main).launch {
+                    trackingInfo.hasAttemptedRecognition = true
+                    trackingInfo.isRecognitionInProgress = false
+                }
             }
         }
     }

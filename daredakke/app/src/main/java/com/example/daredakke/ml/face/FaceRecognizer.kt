@@ -18,41 +18,48 @@ class FaceRecognizer(
      */
     suspend fun recognizeFace(embedding: FloatArray): RecognitionResult {
         val allEmbeddings = personRepository.getAllEmbeddings()
-        
+
+        println("📊 Recognition: Total stored embeddings=${allEmbeddings.size}, Persons=${allEmbeddings.groupBy { it.personId }.size}")
+
         if (allEmbeddings.isEmpty()) {
+            println("⚠️ No stored embeddings found")
             return RecognitionResult.Unknown
         }
-        
+
         // 人物ごとにグループ化
         val embeddingsByPerson = allEmbeddings.groupBy { it.personId }
-        
+
         var bestMatch: Pair<Long, Float>? = null
-        
+
         embeddingsByPerson.forEach { (personId, personEmbeddings) ->
             // 上位k個の埋め込みを使用（仕様書の安定化処理）
             val topEmbeddings = personEmbeddings
                 .sortedByDescending { it.createdAt }
                 .take(AppConstants.TOP_K_EMBEDDINGS_FOR_MATCHING)
-            
+
             // 各埋め込みとの類似度を計算
             val similarities = topEmbeddings.map { storedEmbedding ->
                 val storedVector = byteArrayToFloatArray(storedEmbedding.vector)
                 calculateCosineSimilarity(embedding, storedVector)
             }
-            
+
             // 上位k個の平均類似度
             val avgSimilarity = similarities.average().toFloat()
-            
+
+            println("👤 PersonId=$personId: avgSimilarity=$avgSimilarity (from ${similarities.size} embeddings)")
+
             // 最高スコアの更新
             if (bestMatch == null || avgSimilarity > bestMatch!!.second) {
                 bestMatch = Pair(personId, avgSimilarity)
             }
         }
-        
+
         return bestMatch?.let { (personId, similarity) ->
             if (similarity > AppConstants.FACE_RECOGNITION_COSINE_THRESHOLD) {
+                println("✅ Match found: PersonId=$personId, similarity=$similarity (threshold=${AppConstants.FACE_RECOGNITION_COSINE_THRESHOLD})")
                 RecognitionResult.Recognized(personId, similarity)
             } else {
+                println("❌ Best match below threshold: PersonId=$personId, similarity=$similarity (threshold=${AppConstants.FACE_RECOGNITION_COSINE_THRESHOLD})")
                 RecognitionResult.Unknown
             }
         } ?: RecognitionResult.Unknown
