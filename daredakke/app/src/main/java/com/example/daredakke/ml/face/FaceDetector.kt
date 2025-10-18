@@ -384,13 +384,13 @@ class FaceDetector(
         val right = bbox.right.coerceAtMost(frameBitmap.width)
         val bottom = bbox.bottom.coerceAtMost(frameBitmap.height)
         
-        val finalWidth = right - left
-        val finalHeight = bottom - top
-        
-        // 最終的なサイズチェック
-        if (finalWidth <= 0 || finalHeight <= 0) {
+        // 座標の妥当性チェック（補正後にleft >= rightまたはtop >= bottomになる場合を防ぐ）
+        if (left >= right || top >= bottom) {
             return null
         }
+        
+        val finalWidth = right - left
+        val finalHeight = bottom - top
         
         return try {
             Bitmap.createBitmap(frameBitmap, left, top, finalWidth, finalHeight)
