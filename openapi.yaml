@@ -418,6 +418,35 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /summarize:
+    post:
+      summary: テキストの要約
+      description: |
+        提供されたテキストをAIを使用して要約します。
+        Gemini APIを使用してテキストの要約を生成します。
+      operationId: postSummarize
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SummarizeRequest"
+      responses:
+        "200":
+          description: 要約成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SummarizeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -499,6 +528,11 @@ components:
           schema: { $ref: "#/components/schemas/Problem" }
     UnprocessableEntity:
       description: 処理できないエンティティ（特徴量の次元数不正など）
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    InternalServerError:
+      description: サーバー内部エラー
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
@@ -745,3 +779,19 @@ components:
         source_image_hash:
           type: [string, "null"]
           description: 元画像のハッシュ値（任意）
+
+    SummarizeRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: 要約するテキスト
+
+    SummarizeResponse:
+      type: object
+      required: [summary]
+      properties:
+        summary:
+          type: string
+          description: 生成された要約テキスト

@@ -1,0 +1,15 @@
+# pre-commitフックの設定ファイル
+
+repos:
+  # gitleaks の設定
+  - repo: https://github.com/gitleaks/gitleaks
+    # 常に最新版を使うより、特定のバージョン(タグ)で固定するのが推奨
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        name: Detect Hardcoded Secrets (gitleaks)
+        # どのファイルもスキャン対象外にしない
+        files: ".*"
+        exclude: ".*\\.env\\.(example|sample)$"
+
+        args: ["protect", "--verbose", "--source=.", "--staged"]
