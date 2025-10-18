@@ -20,16 +20,23 @@ type Handlers struct {
 }
 
 func main() {
+    if _, err := InitializeApp(); err != nil {
+        log.Fatalf("failed to initialize application: %v", err)
+    }
+}
+
+// InitializeApp initializes the application dependencies
+func InitializeApp() (*Handlers, error) {
 	// Initialize database
 	dbConfig := database.GetConfigFromEnv()
 	db, err := database.NewDB(dbConfig)
 	if err != nil {
-		log.Fatalf("failed to initialize database: %v", err)
+		return nil, err
 	}
 
 	// Run migrations
 	if err := database.AutoMigrate(db); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
+		return nil, err
 	}
 
 	log.Println("Database initialized successfully")
@@ -57,6 +64,5 @@ func main() {
 		Transcribe:  handler.NewTranscribeHandler(jobService),
 	}
 
-	log.Printf("Handlers initialized: %+v", handlers)
-	select {}
+	return handlers, nil
 }
