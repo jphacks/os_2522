@@ -1,0 +1,96 @@
+name: Backend CI (Go)
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+    # backend/ フォルダ配下に変更があった時だけ実行
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    branches: [main]
+    # backend/ フォルダ配下に変更があった時だけ実行
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  ########################################
+  # Job 1: Go Formatter Check
+  ########################################
+  go_formatter_check:
+    name: 1. Go Formatter (goimports)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+          cache: true
+      - run: go install golang.org/x/tools/cmd/goimports@latest
+      - name: Check formatting
+        # フォーマット差分があればジョブを失敗させる（PRで気づけるように）
+        # 'backend/' ディレクトリを対象に実行
+        run: |
+          FORMAT_ISSUES=$(goimports -l ./backend)
+          if [ -n "$FORMAT_ISSUES" ]; then
+            echo "::warning title=Go Formatting Issues::以下のファイルでフォーマットの差分を検出しました。"
+            echo "$FORMAT_ISSUES"
+            exit 1
+          fi
+
+  ########################################
+  # Job 2: SAST (CodeQL for Go)
+  ########################################
+  sast_scan_go:
+    name: 2. SAST (CodeQL Go)
+    runs-on: ubuntu-latest
+    needs: go_formatter_check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+          cache: true
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: "go"
+          build-mode: manual
+      - name: Build (for CodeQL)
+        working-directory: backend
+        run: |
+          go mod download
+          go build ./...
+      - uses: github/codeql-action/analyze@v3
+
+  # ########################################
+  # # Job 3: SCA (Snyk for Go)
+  # ########################################
+  # sca_scan_go:
+  #   name: 3. SCA (Snyk Go)
+  #   runs-on: ubuntu-latest
+  #   needs: go_formatter_check
+  #   env:
+  #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "1.24.0"
+  #         cache: true
+  #     - uses: snyk/actions/setup@v4
+  #     - name: Run Snyk (Go)
+  #       if: ${{ env.SNYK_TOKEN != '' }}
+  #       continue-on-error: true # 脆弱性検知でパイプラインは止めない
+  #       # 'backend/' ディレクトリを指定してスキャン
+  #       run: snyk test ./backend --severity-threshold=medium
+  #       env:
+  #         SNYK_TOKEN: ${{ env.SNYK_TOKEN }}

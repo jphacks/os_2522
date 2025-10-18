@@ -19,6 +19,12 @@ type Handlers struct {
 	Transcribe  *handler.TranscribeHandler
 }
 
+func main() {
+	if _, err := InitializeApp(); err != nil {
+		log.Fatalf("failed to initialize application: %v", err)
+	}
+}
+
 // InitializeApp initializes the application dependencies
 func InitializeApp() (*Handlers, error) {
 	// Initialize database
