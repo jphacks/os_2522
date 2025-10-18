@@ -1,8 +1,13 @@
 package service
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
+	"os"
+	"os/exec"
 )
 
 // FaceExtractionServiceInterface defines the interface for a service that extracts face embeddings from images.
@@ -10,36 +15,66 @@ type FaceExtractionServiceInterface interface {
 	ExtractEmbedding(file *multipart.FileHeader) ([]float32, error)
 }
 
-// FaceExtractionService is a placeholder for a service that would run ML inference.
+// FaceExtractionService runs a Python script to extract embeddings.
 type FaceExtractionService struct {
-	// In a real implementation, this would hold a client to an ML model or service.
+	PythonPath string
+	ScriptPath string
 }
 
 // NewFaceExtractionService creates a new FaceExtractionService.
 func NewFaceExtractionService() *FaceExtractionService {
-	return &FaceExtractionService{}
+	return &FaceExtractionService{
+		PythonPath: "backend/ml/.venv/bin/python",
+		ScriptPath: "backend/ml/extract_embedding.py",
+	}
 }
 
-// ExtractEmbedding is a placeholder implementation.
-// In a real application, this would process the image file and return a real face embedding.
-func (s *FaceExtractionService) ExtractEmbedding(file *multipart.FileHeader) ([]float32, error) {
-	// Placeholder logic: Check if file is not nil.
-	if file == nil {
+// ExtractEmbedding saves the uploaded image to a temporary file and runs the Python script to get the embedding.
+func (s *FaceExtractionService) ExtractEmbedding(fileHeader *multipart.FileHeader) ([]float32, error) {
+	if fileHeader == nil {
 		return nil, fmt.Errorf("image file is nil")
 	}
 
-	// In a real implementation:
-	// 1. Open the file: src, err := file.Open()
-	// 2. Decode the image: img, _, err := image.Decode(src)
-	// 3. Preprocess the image for the ML model.
-	// 4. Run inference to get the embedding.
-	// 5. Return the embedding.
+	// 1. Save the uploaded file to a temporary file
+	src, err := fileHeader.Open()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open uploaded file: %w", err)
+	}
+	defer src.Close()
 
-	// For now, return a dummy 512-dimensional embedding.
-	dummyEmbedding := make([]float32, 512)
-	for i := range dummyEmbedding {
-		dummyEmbedding[i] = 0.123 // A dummy value
+	tempFile, err := os.CreateTemp("", "upload-*.jpg") // Assume jpg for simplicity, though script handles others
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tempFile.Name()) // Clean up the temp file
+
+	_, err = io.Copy(tempFile, src)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save to temp file: %w", err)
+	}
+	tempFile.Close() // Close the file so the python script can open it
+
+	// 2. Execute the Python script
+	cmd := exec.Command(s.PythonPath, s.ScriptPath, tempFile.Name())
+	
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+	if err != nil {
+		return nil, fmt.Errorf("python script execution failed: %w - Stderr: %s", err, stderr.String())
 	}
 
-	return dummyEmbedding, nil
+	if stderr.Len() > 0 {
+		return nil, fmt.Errorf("python script error: %s", stderr.String())
+	}
+
+	// 3. Parse the JSON output from the script
+	var embedding []float32
+	if err := json.Unmarshal(stdout.Bytes(), &embedding); err != nil {
+		return nil, fmt.Errorf("failed to parse embedding from python script: %w", err)
+	}
+
+	return embedding, nil
 }
