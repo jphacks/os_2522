@@ -20,9 +20,9 @@ type Handlers struct {
 }
 
 func main() {
-    if _, err := InitializeApp(); err != nil {
-        log.Fatalf("failed to initialize application: %v", err)
-    }
+	if _, err := InitializeApp(); err != nil {
+		log.Fatalf("failed to initialize application: %v", err)
+	}
 }
 
 // InitializeApp initializes the application dependencies
