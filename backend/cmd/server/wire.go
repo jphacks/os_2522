@@ -11,52 +11,52 @@ import (
 
 // Handlers holds all HTTP handlers
 type Handlers struct {
-    Health      *handler.HealthHandler
-    Person      *handler.PersonHandler
-    Face        *handler.FaceHandler
-    Recognition *handler.RecognitionHandler
-    Encounter   *handler.EncounterHandler
-    Transcribe  *handler.TranscribeHandler
+	Health      *handler.HealthHandler
+	Person      *handler.PersonHandler
+	Face        *handler.FaceHandler
+	Recognition *handler.RecognitionHandler
+	Encounter   *handler.EncounterHandler
+	Transcribe  *handler.TranscribeHandler
 }
 
 func main() {
-    // Initialize database
-    dbConfig := database.GetConfigFromEnv()
-    db, err := database.NewDB(dbConfig)
-    if err != nil {
-        log.Fatalf("failed to initialize database: %v", err)
-    }
+	// Initialize database
+	dbConfig := database.GetConfigFromEnv()
+	db, err := database.NewDB(dbConfig)
+	if err != nil {
+		log.Fatalf("failed to initialize database: %v", err)
+	}
 
-    // Run migrations
-    if err := database.AutoMigrate(db); err != nil {
-        log.Fatalf("failed to run migrations: %v", err)
-    }
+	// Run migrations
+	if err := database.AutoMigrate(db); err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
 
-    log.Println("Database initialized successfully")
+	log.Println("Database initialized successfully")
 
-    // Initialize repositories
-    personRepo := repository.NewPersonRepository(db)
-    faceRepo := repository.NewFaceRepository(db)
-    encounterRepo := repository.NewEncounterRepository(db)
-    jobRepo := repository.NewJobRepository(db)
+	// Initialize repositories
+	personRepo := repository.NewPersonRepository(db)
+	faceRepo := repository.NewFaceRepository(db)
+	encounterRepo := repository.NewEncounterRepository(db)
+	jobRepo := repository.NewJobRepository(db)
 
-    // Initialize services
-    personService := service.NewPersonService(personRepo, faceRepo)
-    faceService := service.NewFaceService(faceRepo, personRepo)
-    recognitionService := service.NewRecognitionService(faceRepo, personRepo, encounterRepo)
-    encounterService := service.NewEncounterService(encounterRepo, personRepo)
-    jobService := service.NewJobService(jobRepo)
+	// Initialize services
+	personService := service.NewPersonService(personRepo, faceRepo)
+	faceService := service.NewFaceService(faceRepo, personRepo)
+	recognitionService := service.NewRecognitionService(faceRepo, personRepo, encounterRepo)
+	encounterService := service.NewEncounterService(encounterRepo, personRepo)
+	jobService := service.NewJobService(jobRepo)
 
-    // Initialize handlers
-    handlers := &Handlers{
-        Health:      handler.NewHealthHandler(),
-        Person:      handler.NewPersonHandler(personService),
-        Face:        handler.NewFaceHandler(faceService),
-        Recognition: handler.NewRecognitionHandler(recognitionService),
-        Encounter:   handler.NewEncounterHandler(encounterService),
-        Transcribe:  handler.NewTranscribeHandler(jobService),
-    }
+	// Initialize handlers
+	handlers := &Handlers{
+		Health:      handler.NewHealthHandler(),
+		Person:      handler.NewPersonHandler(personService),
+		Face:        handler.NewFaceHandler(faceService),
+		Recognition: handler.NewRecognitionHandler(recognitionService),
+		Encounter:   handler.NewEncounterHandler(encounterService),
+		Transcribe:  handler.NewTranscribeHandler(jobService),
+	}
 
-    log.Printf("Handlers initialized: %+v", handlers)
-    select {}
+	log.Printf("Handlers initialized: %+v", handlers)
+	select {}
 }
