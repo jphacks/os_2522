@@ -5,16 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jphacks/os_2522/backend/internal/errors"
-	"github.com/jphacks/os_2522/backend/internal/service"
 )
 
 // TranscribeHandler handles transcription requests
 type TranscribeHandler struct {
-	jobService *service.JobService
+	jobService JobServiceInterface
 }
 
 // NewTranscribeHandler creates a new TranscribeHandler
-func NewTranscribeHandler(jobService *service.JobService) *TranscribeHandler {
+func NewTranscribeHandler(jobService JobServiceInterface) *TranscribeHandler {
 	return &TranscribeHandler{jobService: jobService}
 }
 

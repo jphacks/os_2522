@@ -7,17 +7,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jphacks/os_2522/backend/internal/errors"
 	"github.com/jphacks/os_2522/backend/internal/models"
-	"github.com/jphacks/os_2522/backend/internal/service"
 	"gorm.io/gorm"
 )
 
 // PersonHandler handles person-related requests
 type PersonHandler struct {
-	personService *service.PersonService
+	personService PersonServiceInterface
 }
 
 // NewPersonHandler creates a new PersonHandler
-func NewPersonHandler(personService *service.PersonService) *PersonHandler {
+func NewPersonHandler(personService PersonServiceInterface) *PersonHandler {
 	return &PersonHandler{
 		personService: personService,
 	}

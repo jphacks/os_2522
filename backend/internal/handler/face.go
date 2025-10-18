@@ -5,16 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jphacks/os_2522/backend/internal/errors"
-	"github.com/jphacks/os_2522/backend/internal/service"
 )
 
 // FaceHandler handles face management requests
 type FaceHandler struct {
-	faceService *service.FaceService
+	faceService FaceServiceInterface
 }
 
 // NewFaceHandler creates a new FaceHandler
-func NewFaceHandler(faceService *service.FaceService) *FaceHandler {
+func NewFaceHandler(faceService FaceServiceInterface) *FaceHandler {
 	return &FaceHandler{faceService: faceService}
 }
 
