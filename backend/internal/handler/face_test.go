@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -209,10 +210,11 @@ func TestFaceHandler_AddFace(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := new(MockFaceService)
+			mockExtractionService := new(MockFaceExtractionService)
 			tt.mockSetup(mockService)
 
 			router := gin.New()
-			handler := NewFaceHandler(mockService)
+			handler := NewFaceHandler(mockService, mockExtractionService)
 			router.POST("/persons/:person_id/faces", handler.AddFace)
 
 			var body []byte
@@ -338,10 +340,11 @@ func TestFaceHandler_ListFaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := new(MockFaceService)
+			mockExtractionService := new(MockFaceExtractionService)
 			tt.mockSetup(mockService)
 
 			router := gin.New()
-			handler := NewFaceHandler(mockService)
+			handler := NewFaceHandler(mockService, mockExtractionService)
 			router.GET("/persons/:person_id/faces", handler.ListFaces)
 
 			req, _ := http.NewRequest(http.MethodGet, "/persons/"+tt.personID+"/faces"+tt.queryParams, nil)
@@ -409,10 +412,11 @@ func TestFaceHandler_DeleteFace(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := new(MockFaceService)
+			mockExtractionService := new(MockFaceExtractionService)
 			tt.mockSetup(mockService)
 
 			router := gin.New()
-			handler := NewFaceHandler(mockService)
+			handler := NewFaceHandler(mockService, mockExtractionService)
 			router.DELETE("/persons/:person_id/faces/:face_id", handler.DeleteFace)
 
 			req, _ := http.NewRequest(http.MethodDelete, "/persons/"+tt.personID+"/faces/"+tt.faceID, nil)
@@ -422,6 +426,110 @@ func TestFaceHandler_DeleteFace(t *testing.T) {
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockService.AssertExpectations(t)
+		})
+	}
+}
+
+func TestFaceHandler_AddFaceImage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	createTestEmbedding := func() []float32 {
+		embedding := make([]float32, 512)
+		for i := range embedding {
+			embedding[i] = 0.123
+		}
+		return embedding
+	}
+
+	tests := []struct {
+		name           string
+		personID       string
+		formData       map[string]string
+		fileName       string
+		fileContent    string
+		mockSetup      func(*MockFaceService, *MockFaceExtractionService)
+		expectedStatus int
+	}{
+		{
+			name:        "successful face image addition",
+			personID:    "p-123",
+			formData:    map[string]string{"note": "test note"},
+			fileName:    "test.jpg",
+			fileContent: "fake-image-data",
+			mockSetup: func(mfs *MockFaceService, mfes *MockFaceExtractionService) {
+				mfes.On("ExtractEmbedding", mock.AnythingOfType("*multipart.FileHeader")).Return(createTestEmbedding(), nil)
+				mfs.On("AddFace", "p-123", mock.MatchedBy(func(req *models.FaceEmbeddingRequest) bool {
+					return req.Note != nil && *req.Note == "test note"
+				})).Return(&models.Face{FaceID: "f-new", PersonID: "p-123"}, nil)
+			},
+			expectedStatus: http.StatusCreated,
+		},
+		{
+			name:           "missing image file",
+			personID:       "p-123",
+			formData:       map[string]string{},
+			fileName:       "",
+			fileContent:    "",
+			mockSetup:      func(mfs *MockFaceService, mfes *MockFaceExtractionService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "person not found",
+			personID:    "p-999",
+			formData:    map[string]string{},
+			fileName:    "test.jpg",
+			fileContent: "fake-image-data",
+			mockSetup: func(mfs *MockFaceService, mfes *MockFaceExtractionService) {
+				mfes.On("ExtractEmbedding", mock.AnythingOfType("*multipart.FileHeader")).Return(createTestEmbedding(), nil)
+				mfs.On("AddFace", "p-999", mock.AnythingOfType("*models.FaceEmbeddingRequest")).Return(nil, errors.New("person not found"))
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:        "embedding extraction error",
+			personID:    "p-123",
+			formData:    map[string]string{},
+			fileName:    "test.jpg",
+			fileContent: "fake-image-data",
+			mockSetup: func(mfs *MockFaceService, mfes *MockFaceExtractionService) {
+				mfes.On("ExtractEmbedding", mock.AnythingOfType("*multipart.FileHeader")).Return(nil, errors.New("extraction failed"))
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockFaceService := new(MockFaceService)
+			mockExtractionService := new(MockFaceExtractionService)
+			tt.mockSetup(mockFaceService, mockExtractionService)
+
+			router := gin.New()
+			handler := NewFaceHandler(mockFaceService, mockExtractionService)
+			router.POST("/persons/:person_id/faces-image", handler.AddFaceImage)
+
+			body := &bytes.Buffer{}
+			writer := multipart.NewWriter(body)
+
+			if tt.fileName != "" {
+				part, _ := writer.CreateFormFile("image", tt.fileName)
+				_, _ = part.Write([]byte(tt.fileContent))
+			}
+
+			for key, val := range tt.formData {
+				_ = writer.WriteField(key, val)
+			}
+			writer.Close()
+
+			req, _ := http.NewRequest(http.MethodPost, "/persons/"+tt.personID+"/faces-image", body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			mockFaceService.AssertExpectations(t)
+			mockExtractionService.AssertExpectations(t)
 		})
 	}
 }

@@ -59,7 +59,7 @@ func InitializeApp() (*Handlers, error) {
 	handlers := &Handlers{
 		Health:      handler.NewHealthHandler(),
 		Person:      handler.NewPersonHandler(personService),
-		Face:        handler.NewFaceHandler(faceService),
+		Face:        handler.NewFaceHandler(faceService, faceExtractionService),
 		Recognition: handler.NewRecognitionHandler(recognitionService, faceExtractionService),
 		Encounter:   handler.NewEncounterHandler(encounterService),
 		Transcribe:  handler.NewTranscribeHandler(jobService),

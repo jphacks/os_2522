@@ -62,7 +62,7 @@ func main() {
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
 	personHandler := handler.NewPersonHandler(personService)
-	faceHandler := handler.NewFaceHandler(faceService)
+	faceHandler := handler.NewFaceHandler(faceService, faceExtractionService)
 	recognitionHandler := handler.NewRecognitionHandler(recognitionService, faceExtractionService)
 	encounterHandler := handler.NewEncounterHandler(encounterService)
 	transcribeHandler := handler.NewTranscribeHandler(jobService)
@@ -98,6 +98,7 @@ func main() {
 
 	// Face endpoints
 	protected.POST("/persons/:person_id/faces", faceHandler.AddFace)
+	protected.POST("/persons/:person_id/faces-image", faceHandler.AddFaceImage)
 	protected.GET("/persons/:person_id/faces", faceHandler.ListFaces)
 	protected.DELETE("/persons/:person_id/faces/:face_id", faceHandler.DeleteFace)
 
