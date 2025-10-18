@@ -19,7 +19,7 @@ paths:
       summary: ヘルスチェック
       operationId: healthz
       responses:
-        '200':
+        "200":
           description: OK
 
   /recognize:
@@ -37,22 +37,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RecognitionRequest'
+              $ref: "#/components/schemas/RecognitionRequest"
       responses:
-        '200':
+        "200":
           description: 照合結果
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RecognitionResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '413':
-          $ref: '#/components/responses/PayloadTooLarge'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
+                $ref: "#/components/schemas/RecognitionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
 
   /persons:
     get:
@@ -61,36 +61,36 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/limit'
-        - $ref: '#/components/parameters/cursor'
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
         - in: query
           name: q
           schema: { type: string }
           description: 名前の部分一致検索
       responses:
-        '200':
+        "200":
           description: 一覧
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PersonList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: "#/components/schemas/PersonList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       summary: 新規人物の登録
       operationId: createPerson
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PersonCreate'
+              $ref: "#/components/schemas/PersonCreate"
       responses:
-        '201':
+        "201":
           description: 作成
           headers:
             Location:
@@ -99,13 +99,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Person'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
-          $ref: '#/components/responses/Conflict'
+                $ref: "#/components/schemas/Person"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
 
   /persons/{person_id}:
     get:
@@ -114,59 +114,59 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/PersonId'
+        - $ref: "#/components/parameters/PersonId"
       responses:
-        '200':
+        "200":
           description: 取得成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Person'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Person"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
     patch:
       summary: 人物の更新（部分更新）
       operationId: updatePerson
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/PersonId'
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/PersonId"
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PersonUpdate'
+              $ref: "#/components/schemas/PersonUpdate"
       responses:
-        '200':
+        "200":
           description: 更新後
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Person'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Person"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
       summary: 人物の削除（ソフトデリート推奨）
       operationId: deletePerson
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/PersonId'
+        - $ref: "#/components/parameters/PersonId"
       responses:
-        '204':
+        "204":
           description: 削除完了
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /persons/{person_id}/faces:
     post:
@@ -178,41 +178,41 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/PersonId'
+        - $ref: "#/components/parameters/PersonId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FaceEmbeddingRequest'
+              $ref: "#/components/schemas/FaceEmbeddingRequest"
       responses:
-        '201':
+        "201":
           description: 作成
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Face'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
+                $ref: "#/components/schemas/Face"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
     get:
       summary: 人物に紐づく顔一覧
       operationId: listFaces
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/PersonId'
+        - $ref: "#/components/parameters/PersonId"
         - in: query
           name: include_embedding
           schema: { type: boolean, default: false }
           description: trueの場合、レスポンスに特徴量（embedding）を含める（クライアント側キャッシュ用）
       responses:
-        '200':
+        "200":
           description: 一覧
           content:
             application/json:
@@ -221,7 +221,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: { $ref: '#/components/schemas/Face' }
+                    items: { $ref: "#/components/schemas/Face" }
 
   /persons/{person_id}/faces/{face_id}:
     delete:
@@ -230,15 +230,15 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/PersonId'
-        - $ref: '#/components/parameters/FaceId'
+        - $ref: "#/components/parameters/PersonId"
+        - $ref: "#/components/parameters/FaceId"
       responses:
-        '204':
+        "204":
           description: 削除完了
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /persons/{person_id}/encounters:
     get:
@@ -247,16 +247,16 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/PersonId'
-        - $ref: '#/components/parameters/limit'
-        - $ref: '#/components/parameters/cursor'
+        - $ref: "#/components/parameters/PersonId"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
       responses:
-        '200':
+        "200":
           description: 一覧
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EncounterList'
+                $ref: "#/components/schemas/EncounterList"
 
   /transcribe:
     post:
@@ -265,7 +265,7 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -276,7 +276,7 @@ paths:
               properties:
                 person_id:
                   type: string
-                  pattern: '^p-[A-Za-z0-9]+$'
+                  pattern: "^p-[A-Za-z0-9]+$"
                   description: 既知の場合は指定
                 audio:
                   type: string
@@ -287,16 +287,16 @@ paths:
                   format: uri
                   description: 完了通知用のWebhook（任意）
       responses:
-        '202':
+        "202":
           description: 受け付け
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Job'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: "#/components/schemas/Job"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /jobs/{job_id}:
     get:
@@ -305,18 +305,18 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/JobId'
+        - $ref: "#/components/parameters/JobId"
       responses:
-        '200':
+        "200":
           description: ジョブ情報
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Job'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/Job"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
 components:
   securitySchemes:
@@ -332,21 +332,21 @@ components:
       required: true
       schema:
         type: string
-        pattern: '^p-[A-Za-z0-9]+$'
+        pattern: "^p-[A-Za-z0-9]+$"
     FaceId:
       name: face_id
       in: path
       required: true
       schema:
         type: string
-        pattern: '^f-[A-Za-z0-9]+$'
+        pattern: "^f-[A-Za-z0-9]+$"
     JobId:
       name: job_id
       in: path
       required: true
       schema:
         type: string
-        pattern: '^j-[A-Za-z0-9]+$'
+        pattern: "^j-[A-Za-z0-9]+$"
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -371,37 +371,37 @@ components:
       description: 不正なリクエスト
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: { $ref: "#/components/schemas/Problem" }
     Unauthorized:
       description: 認証エラー
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: { $ref: "#/components/schemas/Problem" }
     NotFound:
       description: リソースが見つからない
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: { $ref: "#/components/schemas/Problem" }
     Conflict:
       description: 競合（重複など）
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: { $ref: "#/components/schemas/Problem" }
     PayloadTooLarge:
       description: ペイロードが大きすぎます
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: { $ref: "#/components/schemas/Problem" }
     UnsupportedMediaType:
       description: 非対応のメディアタイプ
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: { $ref: "#/components/schemas/Problem" }
     UnprocessableEntity:
       description: 処理できないエンティティ（特徴量の次元数不正など）
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: { $ref: "#/components/schemas/Problem" }
 
   schemas:
     Problem:
@@ -445,8 +445,7 @@ components:
         name:
           type: string
         last_summary:
-          type: string
-          nullable: true
+          type: [string, "null"]
         created_at:
           type: string
           format: date-time
@@ -462,10 +461,9 @@ components:
       properties:
         items:
           type: array
-          items: { $ref: '#/components/schemas/Person' }
+          items: { $ref: "#/components/schemas/Person" }
         next_cursor:
-          type: string
-          nullable: true
+          type: [string, "null"]
 
     Face:
       type: object
@@ -478,32 +476,27 @@ components:
           type: string
           example: p-67890
         image_url:
-          type: string
+          type: [string, "null"]
           format: uri
-          nullable: true
           description: 画像の取得用URL（署名付きURLなど）※現在は未使用
         embedding:
-          type: array
+          type: [array, "null"]
           items: { type: number, format: float }
-          nullable: true
           description: 顔の特徴量ベクトル（include_embedding=trueの場合のみ含まれる）
         embedding_dim:
           type: integer
           example: 512
           description: 特徴量の次元数
         model_version:
-          type: string
+          type: [string, "null"]
           example: facenet-tflite-v1
-          nullable: true
           description: 特徴量生成に使用したモデルのバージョン
         embedding_checksum:
-          type: string
+          type: [string, "null"]
           example: sha256:abc123...
-          nullable: true
           description: 特徴量のチェックサム（クライアント側の差分同期用）
         note:
-          type: string
-          nullable: true
+          type: [string, "null"]
         created_at:
           type: string
           format: date-time
@@ -527,18 +520,16 @@ components:
           minimum: 0
           maximum: 1
         summary:
-          type: string
-          nullable: true
+          type: [string, "null"]
 
     EncounterList:
       type: object
       properties:
         items:
           type: array
-          items: { $ref: '#/components/schemas/Encounter' }
+          items: { $ref: "#/components/schemas/Encounter" }
         next_cursor:
-          type: string
-          nullable: true
+          type: [string, "null"]
 
     RecognitionCandidate:
       type: object
@@ -546,7 +537,7 @@ components:
         person_id: { type: string, example: p-12345 }
         name: { type: string, example: 山田 太郎 }
         score: { type: number, format: float, minimum: 0, maximum: 1 }
-        last_summary: { type: string, nullable: true }
+        last_summary: { type: ["string", "null"] }
 
     RecognitionResponse:
       type: object
@@ -556,16 +547,16 @@ components:
           type: string
           enum: [known, unknown]
         best_match:
-          allOf:
-            - $ref: '#/components/schemas/RecognitionCandidate'
-          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/RecognitionCandidate"
+            - type: "null"
         candidates:
           type: array
-          items: { $ref: '#/components/schemas/RecognitionCandidate' }
+          items: { $ref: "#/components/schemas/RecognitionCandidate" }
         created_encounter:
-          allOf:
-            - $ref: '#/components/schemas/Encounter'
-          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/Encounter"
+            - type: "null"
 
     Job:
       type: object
@@ -581,18 +572,17 @@ components:
           type: string
           format: date-time
         finished_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
         result:
-          $ref: '#/components/schemas/TranscriptionResult'
+          $ref: "#/components/schemas/TranscriptionResult"
         error:
-          $ref: '#/components/schemas/Problem'
+          $ref: "#/components/schemas/Problem"
 
     TranscriptionResult:
       type: object
       properties:
-        person_id: { type: string, example: p-12345, nullable: true }
+        person_id: { type: ["string", "null"], example: p-12345 }
         transcript: { type: string }
         summary: { type: string }
         language: { type: string, example: ja }
@@ -649,12 +639,9 @@ components:
           example: facenet-tflite-v1
           description: 特徴量生成に使用したモデルのバージョン
         note:
-          type: string
+          type: [string, "null"]
           maxLength: 2000
-          nullable: true
           description: 任意メモ
         source_image_hash:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: 元画像のハッシュ値（任意）
-
