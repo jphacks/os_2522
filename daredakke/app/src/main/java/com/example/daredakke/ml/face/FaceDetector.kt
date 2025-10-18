@@ -501,7 +501,7 @@ class FaceDetector(
             trackingInfo.isRecognitionInProgress = false
             return
         }
-
+ 
         // 非同期で埋め込み抽出と認識処理を実行
         CoroutineScope(Dispatchers.IO).launch {
             try {
