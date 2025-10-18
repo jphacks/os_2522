@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModel
+import com.example.daredakke.constants.AppConstants
 import com.example.daredakke.ml.face.FaceDetector
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -135,7 +136,7 @@ private fun CameraPreviewWithOverlay(
             
             // 画像解析の設定（顔検出用）
             val imageAnalyzer = ImageAnalysis.Builder()
-                .setTargetResolution(android.util.Size(640, 480))
+                .setTargetResolution(android.util.Size(AppConstants.CAMERA_WIDTH, AppConstants.CAMERA_HEIGHT))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also { analyzer ->

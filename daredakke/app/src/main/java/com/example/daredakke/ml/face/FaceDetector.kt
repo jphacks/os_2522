@@ -98,8 +98,8 @@ class FaceDetector(
         imageHeight: Int
     ): Rect {
         // プレビューサイズが設定されていない場合はデフォルト値を使用
-        val displayWidth = if (previewWidth > 0) previewWidth.toFloat() else 1080f
-        val displayHeight = if (previewHeight > 0) previewHeight.toFloat() else 1920f
+        val displayWidth = if (previewWidth > 0) previewWidth.toFloat() else AppConstants.CAMERA_WIDTH.toFloat()
+        val displayHeight = if (previewHeight > 0) previewHeight.toFloat() else AppConstants.CAMERA_HEIGHT.toFloat()
         
         // 基本的なスケール変換
         val scaleX = displayWidth / imageWidth.toFloat()
