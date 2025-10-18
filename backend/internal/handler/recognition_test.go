@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,6 +26,19 @@ func (m *MockRecognitionService) Recognize(req *models.RecognitionRequest) (*mod
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.RecognitionResponse), args.Error(1)
+}
+
+// MockFaceExtractionService is a mock implementation of FaceExtractionService
+type MockFaceExtractionService struct {
+	mock.Mock
+}
+
+func (m *MockFaceExtractionService) ExtractEmbedding(file *multipart.FileHeader) ([]float32, error) {
+	args := m.Called(file)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]float32), args.Error(1)
 }
 
 func TestRecognitionHandler_PostRecognize(t *testing.T) {
@@ -201,11 +215,12 @@ func TestRecognitionHandler_PostRecognize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := new(MockRecognitionService)
-			tt.mockSetup(mockService)
+			mockRecogService := new(MockRecognitionService)
+			mockExtractService := new(MockFaceExtractionService) // New
+			tt.mockSetup(mockRecogService)
 
 			router := gin.New()
-			handler := NewRecognitionHandler(mockService)
+			handler := NewRecognitionHandler(mockRecogService, mockExtractService) // Updated
 			router.POST("/recognize", handler.PostRecognize)
 
 			var body []byte
@@ -227,7 +242,114 @@ func TestRecognitionHandler_PostRecognize(t *testing.T) {
 			if tt.checkResponse != nil {
 				tt.checkResponse(t, w)
 			}
-			mockService.AssertExpectations(t)
+			mockRecogService.AssertExpectations(t)
+		})
+	}
+}
+
+func TestRecognitionHandler_PostRecognizeImage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	createTestEmbedding := func() []float32 {
+		embedding := make([]float32, 512)
+		for i := range embedding {
+			embedding[i] = 0.123
+		}
+		return embedding
+	}
+
+	tests := []struct {
+		name           string
+		formData       map[string]string
+		fileName       string
+		fileContent    string
+		mockSetup      func(*MockRecognitionService, *MockFaceExtractionService)
+		expectedStatus int
+	}{
+		{
+			name:        "successful recognition",
+			formData:    map[string]string{"top_k": "5", "min_score": "0.7"},
+			fileName:    "test.jpg",
+			fileContent: "fake-image-data",
+			mockSetup: func(mrs *MockRecognitionService, mfes *MockFaceExtractionService) {
+				mfes.On("ExtractEmbedding", mock.AnythingOfType("*multipart.FileHeader")).Return(createTestEmbedding(), nil)
+				mrs.On("Recognize", mock.MatchedBy(func(req *models.RecognitionRequest) bool {
+					return req.TopK == 5 && req.MinScore == 0.7
+				})).Return(&models.RecognitionResponse{Status: models.RecognitionStatusKnown}, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "missing image file",
+			formData:       map[string]string{},
+			fileName:       "", // No file
+			fileContent:    "",
+			mockSetup:      func(mrs *MockRecognitionService, mfes *MockFaceExtractionService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "embedding extraction error",
+			formData:    map[string]string{},
+			fileName:    "test.jpg",
+			fileContent: "fake-image-data",
+			mockSetup: func(mrs *MockRecognitionService, mfes *MockFaceExtractionService) {
+				mfes.On("ExtractEmbedding", mock.AnythingOfType("*multipart.FileHeader")).Return(nil, errors.New("face not found"))
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "invalid top_k",
+			formData:    map[string]string{"top_k": "invalid"},
+			fileName:    "test.jpg",
+			fileContent: "fake-image-data",
+			mockSetup:   func(mrs *MockRecognitionService, mfes *MockFaceExtractionService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "recognition service error",
+			formData:    map[string]string{},
+			fileName:    "test.jpg",
+			fileContent: "fake-image-data",
+			mockSetup: func(mrs *MockRecognitionService, mfes *MockFaceExtractionService) {
+				mfes.On("ExtractEmbedding", mock.AnythingOfType("*multipart.FileHeader")).Return(createTestEmbedding(), nil)
+				mrs.On("Recognize", mock.AnythingOfType("*models.RecognitionRequest")).Return(nil, errors.New("database error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRecogService := new(MockRecognitionService)
+			mockExtractService := new(MockFaceExtractionService)
+			tt.mockSetup(mockRecogService, mockExtractService)
+
+			router := gin.New()
+			handler := NewRecognitionHandler(mockRecogService, mockExtractService)
+			router.POST("/recognize-image", handler.PostRecognizeImage)
+
+			body := &bytes.Buffer{}
+			writer := multipart.NewWriter(body)
+
+			if tt.fileName != "" {
+				part, _ := writer.CreateFormFile("image", tt.fileName)
+				_, _ = part.Write([]byte(tt.fileContent))
+			}
+
+			for key, val := range tt.formData {
+				_ = writer.WriteField(key, val)
+			}
+			writer.Close()
+
+			req, _ := http.NewRequest(http.MethodPost, "/recognize-image", body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			mockRecogService.AssertExpectations(t)
+			mockExtractService.AssertExpectations(t)
 		})
 	}
 }
