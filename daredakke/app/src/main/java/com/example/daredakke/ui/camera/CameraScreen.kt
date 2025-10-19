@@ -117,6 +117,8 @@ private fun CameraPreviewWithOverlay(
     val detectionResults by viewModel.detectionResults.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
     val showNameDialog by viewModel.showNameDialog.collectAsState()
+     // 追加: ViewModel が保持する対象 trackingId を購読
+    val dialogTrackingId by viewModel.nameDialogTrackingId.collectAsState()
     val isUsingFrontCamera by viewModel.isUsingFrontCamera.collectAsState()
     
     DisposableEffect(lifecycleOwner, isUsingFrontCamera) {
@@ -301,18 +303,16 @@ private fun CameraPreviewWithOverlay(
             }
         }
     }
-
+    
     // 名前入力ダイアログ
+    // 変更: 「最初の未認識」を探さず、dialogTrackingId を使って表示
     if (showNameDialog) {
-        val unknownFace = detectionResults.firstOrNull {
-            it.recognitionInfo?.isRecognized != true
-        }
-        unknownFace?.trackingId?.let { trackingId ->
+        dialogTrackingId?.let { trackingId ->
             NameInputDialog(
                 trackingId = trackingId,
                 onDismiss = { viewModel.dismissNameDialog() },
                 onSave = { name ->
-                    viewModel.savePersonName(name)
+                    viewModel.savePersonName(trackingId, name) // trackingId を明示的に渡す
                 }
             )
         }
