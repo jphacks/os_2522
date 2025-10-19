@@ -18,6 +18,8 @@ JPHACKSのような多くの人が一堂に会す場では、「この人、顔�
 
 ### 特長
 
+[![IMAGE ALT TEXT HERE](kinou.png)](https://www.youtube.com/watch?v=lA9EluZugD8)
+
 #### 1. "この人の名前なんだっけ？"を防ぐ名前表示機能
 
 カメラに人が検出され、その人が過去に会ったことがある人だった場合はその人の名前を表示！
@@ -81,3 +83,8 @@ JPHACKSのような多くの人が一堂に会す場では、「この人、顔�
     -   **特に力を入れた部分:**
         -   録音した音声から文字起こしを行い、AIで要約してアプリに表示するまでの一連の処理フロー
             -   `daredakke/app/src/main/java/com/example/daredakke/workers/TranscriptionWorker.kt`
+
+
+#### PS
+
+Goファイルは頑張った証です。使用していません。暖かく見守ってください。
