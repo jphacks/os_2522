@@ -13,6 +13,10 @@ import com.example.daredakke.ui.navigation.AppNavigation
 import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
+import android.content.Context
+import android.webkit.WebView
+
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,11 +30,11 @@ class MainActivity : ComponentActivity() {
         android.util.Log.d("AUTH", "Token: $token")
 
         // 脆弱性 5: SQL インジェクション
-        // val userInput = findViewById<EditText>(R.id.user_input).text.toString()
+          val userInput = intent.getStringExtra("user_input") ?: ""
         // val sqlQuery = "SELECT * FROM users WHERE username = '$userInput'"
 
         // 脆弱性 6: WebView での JavaScript 有効化
-        val webView = findViewById<WebView>(R.id.webview)
+        val webView = WebView(this)                           // ← 直接生成に変更
         webView.settings.javaScriptEnabled = true
         webView.addJavascriptInterface(this, "Android")
         webView.loadUrl("javascript:alert('XSS')")
@@ -44,20 +48,6 @@ class MainActivity : ComponentActivity() {
         val cmd = "echo $userInput"
         Runtime.getRuntime().exec(cmd)
 
-        // 脆弱性 9: インテント経由のデータ処理（検証なし）
-        val untrustedData = intent.getStringExtra("data")
-        processData(untrustedData!!)
-        
-        installSplashScreen()
-        setContent {
-            daredakkeTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = White,
-                ) {
-                    AppNavigation()
-                }
-            }
-        }
+    
     }
 }
