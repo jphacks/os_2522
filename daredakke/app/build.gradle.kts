@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
+    id("com.chaquo.python")
 }
 
 android {
@@ -20,6 +21,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+
+        // Chaquo Python configuration
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
         }
 
         // API Keys from local.properties
@@ -82,6 +88,16 @@ android {
             excludes += "META-INF/LICENSE*"
             excludes += "META-INF/NOTICE*"
             excludes += "META-INF/INDEX.LIST"
+        }
+    }
+}
+
+chaquopy {
+    defaultConfig {
+        buildPython("/opt/homebrew/bin/python3.12")
+        pip {
+            install("numpy")
+            install("pillow")
         }
     }
 }
@@ -156,6 +172,4 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-
-
 }
