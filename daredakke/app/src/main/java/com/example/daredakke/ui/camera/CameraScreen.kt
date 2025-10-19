@@ -214,102 +214,90 @@ private fun CameraPreviewWithOverlay(
         }
     }
     
-    Box(modifier = Modifier.fillMaxSize()) {
-        // カメラプレビュー
-    AndroidView(
-            factory = { ctx ->
-                PreviewView(ctx).also { preview ->
-                    previewView = preview
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-        
-        // 顔検出結果のオーバーレイ
-        FaceDetectionOverlay(
-            detectionResults = detectionResults,
-            modifier = Modifier.fillMaxSize()
-        )
-        
-        // デバッグ情報表示（開発中のみ）
-        if (detectionResults.isNotEmpty()) {
-            Card(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+    val hasUnknownFace = detectionResults.any {
+        it.recognitionInfo?.isRecognized != true
+    }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { viewModel.toggleCamera() },
+                    icon = { Text(if (isUsingFrontCamera) "📷" else "🤳", fontSize = 24.sp) },
+                    label = { Text("切替") }
                 )
-            ) {
-                Column(
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text(
-                        text = "検出された顔: ${detectionResults.size}",
-                        style = MaterialTheme.typography.bodySmall
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { viewModel.onRegisterButtonTapped() },
+                    icon = { Text("➕", fontSize = 24.sp) },
+                    label = { Text("登録") },
+                    enabled = hasUnknownFace
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = onNavigateToPersonList,
+                    icon = { Text("👥", fontSize = 24.sp) },
+                    label = { Text("一覧") }
+                )
+            }
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            // カメラプレビュー
+            AndroidView(
+                factory = { ctx ->
+                    PreviewView(ctx).also { preview ->
+                        previewView = preview
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+            
+            // 顔検出結果のオーバーレイ
+            FaceDetectionOverlay(
+                detectionResults = detectionResults,
+                modifier = Modifier.fillMaxSize()
+            )
+            
+            // デバッグ情報表示（開発中のみ）
+            if (detectionResults.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
                     )
-                    detectionResults.forEach { result ->
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp)
+                    ) {
                         Text(
-                            text = "ID: ${result.trackingId}, 安定: ${result.isStable}",
+                            text = "検出された顔: ${detectionResults.size}",
                             style = MaterialTheme.typography.bodySmall
                         )
+                        detectionResults.forEach { result ->
+                            Text(
+                                text = "ID: ${result.trackingId}, 安定: ${result.isStable}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             }
-        }
-        
-        // 録音インジケータ
-        RecordingIndicator(
-            isRecording = isRecording,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp)
-        )
-        
-        // カメラ切り替えボタン
-        FloatingActionButton(
-            onClick = { viewModel.toggleCamera() },
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp)
-        ) {
-            Text(if (isUsingFrontCamera) "📷" else "🤳")
-        }
-        
-        // 人物一覧ボタン
-        FloatingActionButton(
-            onClick = onNavigateToPersonList,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-        ) {
-            Text("👥")
-        }
-
-        // 人物登録ボタン（中央下部）
-        val hasUnknownFace = detectionResults.any {
-            it.recognitionInfo?.isRecognized != true
-        }
-
-        FloatingActionButton(
-            onClick = { viewModel.onRegisterButtonTapped() },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp),
-            containerColor = if (hasUnknownFace) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("➕")
-                Text("人物を登録")
-            }
+            
+            // 録音インジケータ
+            RecordingIndicator(
+                isRecording = isRecording,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+            )
         }
     }
 
@@ -328,5 +316,4 @@ private fun CameraPreviewWithOverlay(
             )
         }
     }
-    
 }
