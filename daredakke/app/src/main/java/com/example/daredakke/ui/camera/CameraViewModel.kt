@@ -178,7 +178,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
      * 名前入力ダイアログを閉じる
      */
     fun dismissNameDialog() {
-         _nameDialogTrackingId.value = null       // 追記: 対象をクリア
+        _nameDialogTrackingId.value = null       // 追記: 対象をクリア
         _showNameDialog.value = false
     }
 
@@ -192,28 +192,28 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * 新しい人物として名前を保存（Phase 2完全実装）
      */
-fun savePersonName(trackingId: Int, name: String) {
-    viewModelScope.launch {
-        try {
-            val trimmed = name.trim()
-            if (trimmed.isEmpty()) {
+    fun savePersonName(trackingId: Int, name: String) {
+        viewModelScope.launch {
+            try {
+                val trimmed = name.trim()
+                if (trimmed.isEmpty()) {
+                    dismissNameDialog()
+                    return@launch
+                }
+                println("Attempting to save person with trackingId: $trackingId, name: $trimmed")
+                val personId = faceDetector?.saveNewPersonWithEmbedding(trackingId, trimmed)
+                if (personId != null) {
+                    println("Successfully saved new person: $trimmed (ID: $personId)")
+                } else {
+                    println("Failed to save new person: $trimmed. personId is null.")
+                }
+            } catch (e: Exception) {
+                println("Failed to save person name: ${e.message}")
+            } finally {
                 dismissNameDialog()
-                return@launch
             }
-            println("Attempting to save person with trackingId: $trackingId, name: $trimmed")
-            val personId = faceDetector?.saveNewPersonWithEmbedding(trackingId, trimmed)
-            if (personId != null) {
-                println("Successfully saved new person: $trimmed (ID: $personId)")
-            } else {
-                println("Failed to save new person: $trimmed. personId is null.")
-            }
-        } catch (e: Exception) {
-            println("Failed to save person name: ${e.message}")
-        } finally {
-            dismissNameDialog()
         }
     }
-}
     
     /**
      * 三層ゲーティング監視の開始
