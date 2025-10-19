@@ -50,6 +50,7 @@ func main() {
 	// Initialize services
 	personService := service.NewPersonService(personRepo, faceRepo)
 	faceService := service.NewFaceService(faceRepo, personRepo)
+	faceExtractionService := service.NewFaceExtractionService()
 	recognitionService := service.NewRecognitionService(faceRepo, personRepo, encounterRepo)
 	encounterService := service.NewEncounterService(encounterRepo, personRepo)
 	jobService := service.NewJobService(jobRepo)
@@ -61,8 +62,8 @@ func main() {
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
 	personHandler := handler.NewPersonHandler(personService)
-	faceHandler := handler.NewFaceHandler(faceService)
-	recognitionHandler := handler.NewRecognitionHandler(recognitionService)
+	faceHandler := handler.NewFaceHandler(faceService, faceExtractionService)
+	recognitionHandler := handler.NewRecognitionHandler(recognitionService, faceExtractionService)
 	encounterHandler := handler.NewEncounterHandler(encounterService)
 	transcribeHandler := handler.NewTranscribeHandler(jobService)
 	var summarizeHandler *handler.SummarizeHandler
@@ -86,6 +87,7 @@ func main() {
 
 	// Recognition endpoints
 	protected.POST("/recognize", recognitionHandler.PostRecognize)
+	protected.POST("/recognize-image", recognitionHandler.PostRecognizeImage)
 
 	// Person endpoints
 	protected.GET("/persons", personHandler.ListPersons)
@@ -96,6 +98,7 @@ func main() {
 
 	// Face endpoints
 	protected.POST("/persons/:person_id/faces", faceHandler.AddFace)
+	protected.POST("/persons/:person_id/faces-image", faceHandler.AddFaceImage)
 	protected.GET("/persons/:person_id/faces", faceHandler.ListFaces)
 	protected.DELETE("/persons/:person_id/faces/:face_id", faceHandler.DeleteFace)
 

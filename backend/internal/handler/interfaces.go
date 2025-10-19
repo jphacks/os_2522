@@ -37,3 +37,8 @@ type RecognitionServiceInterface interface {
 type EncounterServiceInterface interface {
 	ListEncounters(personID string, limit int, cursor *string) (*models.EncounterList, error)
 }
+
+// FaceExtractionServiceInterface defines the interface for a service that extracts face embeddings from images.
+type FaceExtractionServiceInterface interface {
+	ExtractEmbedding(file *multipart.FileHeader) ([]float32, error)
+}
