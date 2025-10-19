@@ -12,9 +12,7 @@ import com.example.daredakke.ui.theme.daredakkeTheme
 import com.example.daredakke.ui.navigation.AppNavigation
 import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-// 追加
-import android.content.Context
-import android.webkit.WebView
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,8 +26,8 @@ class MainActivity : ComponentActivity() {
         android.util.Log.d("AUTH", "Token: $token")
 
         // 脆弱性 5: SQL インジェクション
-        val userInput = findViewById<EditText>(R.id.user_input).text.toString()
-        val sqlQuery = "SELECT * FROM users WHERE username = '$userInput'"
+        // val userInput = findViewById<EditText>(R.id.user_input).text.toString()
+        // val sqlQuery = "SELECT * FROM users WHERE username = '$userInput'"
 
         // 脆弱性 6: WebView での JavaScript 有効化
         val webView = findViewById<WebView>(R.id.webview)
