@@ -56,9 +56,9 @@ class PersonDetailViewModel(
                 // 会話履歴を取得
                 personRepository.getEncountersByPersonId(personId).collect { encounterList ->
                     _encounters.value = encounterList.sortedByDescending { it.startedAt }
-                }
                 
-                _isLoading.value = false
+                    _isLoading.value = false
+                }
             } catch (e: Exception) {
                 println("Failed to load person data: ${e.message}")
                 _isLoading.value = false
