@@ -56,7 +56,7 @@ func (s *FaceExtractionService) ExtractEmbedding(fileHeader *multipart.FileHeade
 
 	// 2. Execute the Python script
 	cmd := exec.Command(s.PythonPath, s.ScriptPath, tempFile.Name())
-	
+
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
