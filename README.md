@@ -84,6 +84,11 @@ JPHACKSのような多くの人が一堂に会す場では、「この人、顔�
         -   録音した音声から文字起こしを行い、AIで要約してアプリに表示するまでの一連の処理フロー
             -   `daredakke/app/src/main/java/com/example/daredakke/workers/TranscriptionWorker.kt`
 
+- **セキュリティ:** コーディングにおいて、APIキーや機密情報をソースコードに直接埋め込まず、ビルド時に安全に注入する仕組みを導入しました。これにより、リポジトリのセキュリティを強化し、情報漏洩のリスクを低減しました。
+    - **特に力を入れた部分:**
+        - APIキーの安全な管理と注入
+            - `daredakke/app/build.gradle.kts`
+
 
 #### PS
 
