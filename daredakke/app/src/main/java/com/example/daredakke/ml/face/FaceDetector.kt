@@ -277,8 +277,8 @@ class FaceDetector(
                 .filterNot { it in pinnedTrackingIds } // 追加: ピン留めは掃除しない
                 .forEach { expiredId ->
                     trackingInfoMap.remove(expiredId)
-                    lastEmbeddingExtractionTime.remove(expiredId)
-                    lastExtractedEmbeddings.remove(expiredId)
+                    // lastEmbeddingExtractionTime.remove(expiredId)
+                    // lastExtractedEmbeddings.remove(expiredId)
                     clearFaceThumbnail(expiredId)
                 }
                 
