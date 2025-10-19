@@ -6,6 +6,7 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,7 +14,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role.Companion.Image
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -26,6 +31,7 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import com.example.daredakke.R
 
 /**
  * カメラ画面のメインComposable
@@ -74,29 +80,34 @@ fun CameraScreen(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                Image(
+                    painter = painterResource(id = R.drawable.annotation),
+                    contentDescription = "アプリの説明イラスト", // 画像の説明（任意）
+                    modifier = Modifier.size(100.dp) // 画像サイズを調整
+                )
                 if (!cameraPermissionState.status.isGranted) {
+
                     Text(
-                        text = "カメラ権限が必要です",
-                        style = MaterialTheme.typography.headlineSmall
+                        text = "このアプリでは\nマイクとカメラを\n使用します",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontSize = 32.sp),
+                        textAlign = TextAlign.Center
                     )
                     Button(
-                        onClick = { cameraPermissionState.launchPermissionRequest() }
+                        onClick = { cameraPermissionState.launchPermissionRequest() },
+                        Modifier.width(200.dp),
                     ) {
-                        Text("カメラ権限を許可")
+                        Text("カメラ使用を許可")
                     }
                 }
                 
                 if (!audioPermissionState.status.isGranted) {
-                    Text(
-                        text = "音声録音権限が必要です",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
                     Button(
-                        onClick = { audioPermissionState.launchPermissionRequest() }
+                        onClick = { audioPermissionState.launchPermissionRequest() },
+                        Modifier.width(200.dp),
                     ) {
-                        Text("音声権限を許可")
+                        Text("マイク使用を許可")
                     }
                 }
             }
