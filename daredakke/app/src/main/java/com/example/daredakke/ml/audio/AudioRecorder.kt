@@ -141,11 +141,13 @@ class AudioRecorder {
         }
         
         recordingStartTime = System.currentTimeMillis()
-        currentRecordingData.clear()
-        
-        // プリロールデータを追加
-        currentRecordingData.addAll(prerollBuffer.toList())
-        
+        synchronized(currentRecordingData) {
+            currentRecordingData.clear()
+
+            // プリロールデータを追加
+            currentRecordingData.addAll(prerollBuffer.toList())
+        }
+
         _isRecording.value = true
         _recordingFile.value = outputFile
         
@@ -157,7 +159,9 @@ class AudioRecorder {
      */
     fun addRecordingFrame(audioFrame: ShortArray) {
         if (_isRecording.value) {
-            currentRecordingData.add(audioFrame)
+            synchronized(currentRecordingData) {
+                currentRecordingData.add(audioFrame)
+            }
         }
     }
     
@@ -173,18 +177,28 @@ class AudioRecorder {
         CoroutineScope(Dispatchers.IO).launch {
             // ハングオーバ期間の録音継続
             delay(AppConstants.HANGOVER_DURATION_MS)
-            
-            val outputFile = _recordingFile.value
-            if (outputFile != null && currentRecordingData.isNotEmpty()) {
-                saveRecordingToWav(outputFile, currentRecordingData)
-            }
-            
+
+            // 録音状態を先に終了して、新しいフレームの追加を停止
             _isRecording.value = false
+
+            // スナップショットを作成してConcurrentModificationExceptionを回避
+            val recordingSnapshot = synchronized(currentRecordingData) {
+                currentRecordingData.toList()
+            }
+            val frameCount = recordingSnapshot.size
+
+            val outputFile = _recordingFile.value
+            if (outputFile != null && recordingSnapshot.isNotEmpty()) {
+                saveRecordingToWav(outputFile, recordingSnapshot)
+            }
+
             _recordingFile.value = null
-            currentRecordingData.clear()
-            
+            synchronized(currentRecordingData) {
+                currentRecordingData.clear()
+            }
+
             val duration = System.currentTimeMillis() - recordingStartTime
-            println("Recording stopped. Duration: ${duration}ms, Frames: ${currentRecordingData.size}")
+            println("Recording stopped. Duration: ${duration}ms, Frames: ${frameCount}")
         }
     }
     
@@ -268,7 +282,9 @@ class AudioRecorder {
         stopContinuousListening()
         audioRecord?.release()
         audioRecord = null
-        currentRecordingData.clear()
+        synchronized(currentRecordingData) {
+            currentRecordingData.clear()
+        }
         prerollBuffer.clear()
     }
     
@@ -276,10 +292,13 @@ class AudioRecorder {
      * デバッグ情報
      */
     fun getDebugInfo(): AudioRecorderDebugInfo {
+        val frameCount = synchronized(currentRecordingData) {
+            currentRecordingData.size
+        }
         return AudioRecorderDebugInfo(
             isRecording = _isRecording.value,
             prerollBufferSize = prerollBuffer.size,
-            currentRecordingFrames = currentRecordingData.size,
+            currentRecordingFrames = frameCount,
             recordingDuration = if (_isRecording.value) {
                 System.currentTimeMillis() - recordingStartTime
             } else 0L
