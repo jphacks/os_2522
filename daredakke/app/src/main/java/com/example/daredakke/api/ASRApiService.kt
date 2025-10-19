@@ -16,7 +16,7 @@ interface ASRApiService {
      * @param request 音声認識リクエスト
      * @return 文字起こし結果
      */
-    @POST("speech:recognize")
+    @POST("./speech:recognize")
     suspend fun recognizeSpeech(
         @Header("Authorization") authorization: String,
         @Body request: GoogleSpeechRequest
