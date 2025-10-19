@@ -85,16 +85,19 @@ class ThreeLayerGating {
                 val visualAge = currentTime - lastVisualTriggerTime
                 val audioAge = currentTime - lastAudioTriggerTime
                 
-                if (visualAge <= 5000 && audioAge <= 2000) { // 視覚5秒、音声2秒以内
+                if (visualAge <= 5000 && audioAge <= 200) { // 視覚5秒、音声2秒以内
+                    println("stabilizationState  visualAge <= 5000 && audioAge <= 200")
                     StabilizationState.STABLE
                 } else {
-                    StabilizationState.PARTIAL
+                    println("stabilizationState  NOT visualAge <= 5000 && audioAge <= 200")
+                    StabilizationState.STABLE
                 }
             }
             
             // 片方のみ有効
             visualTrigger || audioTrigger == VoiceActivityState.SPEECH -> {
                 StabilizationState.PARTIAL
+                //StabilizationState.STABLE
             }
             
             // 両方とも無効
@@ -128,7 +131,8 @@ class ThreeLayerGating {
                 if (previousState == GatingState.RECORDING) {
                     GatingState.RECORDING
                 } else {
-                    GatingState.WAITING
+                    GatingState.INACTIVE
+                    //GatingState.WAITING
                 }
             }
             

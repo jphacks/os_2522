@@ -134,7 +134,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 _detectionResults.value = results
                 
                 // Phase 3: 視覚トリガーの更新
-                val hasStableFace = results.any { it.isStable }
+                val hasStableFace = results.any { it.isStable && it.recognitionInfo?.personId != null }
                 threeLayerGating?.updateVisualTrigger(hasStableFace)
             }
         }
@@ -256,22 +256,24 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         if (_isRecording.value) {
             return
         }
-        
+
         val timestamp = System.currentTimeMillis()
         val filename = "recording_$timestamp.wav"
         val outputFile = File(recordingsDir, filename)
-        
+
         // Phase 4: 録音セッション情報を記録
         val recognizedPersonId = _detectionResults.value
             .find { it.isStable }
             ?.recognitionInfo
             ?.personId
-        
+
         currentRecordingSession = RecordingSession(
             startTime = timestamp,
             outputFile = outputFile,
             personId = recognizedPersonId
         )
+
+        println("startRecoding: $recognizedPersonId")
         
         audioRecorder?.startRecording(outputFile)
         _isRecording.value = true
@@ -288,6 +290,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         }
         
         val session = currentRecordingSession
+
         audioRecorder?.stopRecording()
         _isRecording.value = false
         
