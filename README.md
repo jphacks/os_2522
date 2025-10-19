@@ -84,10 +84,11 @@ JPHACKSのような多くの人が一堂に会す場では、「この人、顔�
         -   録音した音声から文字起こしを行い、AIで要約してアプリに表示するまでの一連の処理フロー
             -   `daredakke/app/src/main/java/com/example/daredakke/workers/TranscriptionWorker.kt`
 
-- **開発プロセスのセキュリティ強化:** SAST（静的解析）や、Root化端末やFridaによる不正解析を検知する機能、APIキーなど機密情報のコミットを防止する機能を導入しました。開発速度を優先し、SASTはブロッキングせずアラートのみで通知しています。機密情報のコミット防止機能では、pre-commit-hooksでgitleaksを実行しています。
-    - **特に力を入れた部分:**
-        - APIキーの安全な管理と注入
-            - `daredakke/app/build.gradle.kts`
+- **開発プロセスのセキュリティ強化:** SAST（静的解析）の導入や、Root 化端末や Frida による不正解析を検知する機能、API キーなど機密情報のコミットを防止する機能を導入しました。また機密情報のコミット防止機能として pre-commit-hooks で gitleaks を実行しています。
+  - **特に力を入れた部分:**
+    - 開発速度を優先し、SAST はブロッキングせずアラートのみで通知しています。
+      - `/.github/workflows/backend-ci.yml`
+      - `/.github/workflows/daredakke-codeql.yml`
 
 
 #### PS
