@@ -1,6 +1,6 @@
-# DareDakke?
+# Dare Dakke?
 
-[![IMAGE ALT TEXT HERE](samune.png)](https://www.youtube.com/watch?v=lA9EluZugD8)
+![Dare Dakke?](samune.png)
 
 ## 製品概要
 
@@ -11,14 +11,14 @@ JPHACKSのような多くの人が一堂に会す場では、「この人、顔�
 
 ### 製品説明（具体的な製品の説明）
 
-「DareDakke?」は、AR（拡張現実）技術とAIを活用して、”この人、誰だっけ？”という気まずい瞬間をなくし、人間関係をさらに円滑にするためのAndroidアプリケーションです！
+「Dare Dakke?」は、AR（拡張現実）技術とAIを活用して、”この人、誰だっけ？”という気まずい瞬間をなくし、人間関係をさらに円滑にするためのAndroidアプリケーションです！
 
 カメラを気になる人物に向けるだけで、以前に会ったことがある人であれば、その人の名前や前回話した内容の要約が画面上にポップアップ表示されます。初対面の人であれば、その場で会話内容から名前や会話内容を登録します！
 前回の会話内容の要約が表示されるので、さらに会話が弾んだりコミュニケーションがさらに円滑に！？
 
 ### 特長
 
-[![IMAGE ALT TEXT HERE](kinou.png)](https://www.youtube.com/watch?v=lA9EluZugD8)
+![Dare Dakke?機能紹介](kinou.png)
 
 #### 1. "この人の名前なんだっけ？"を防ぐ名前表示機能
 
