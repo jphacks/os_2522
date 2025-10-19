@@ -172,12 +172,19 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
 
         _nameDialogTrackingId.value = target?.trackingId
         _showNameDialog.value = target != null   // ダイアログ表示フラグも同期
+
+        target?.trackingId?.let { tid ->
+        faceDetector?.pinTrackingId(tid)
+    }
     }
 
     /**
      * 名前入力ダイアログを閉じる
      */
     fun dismissNameDialog() {
+          _nameDialogTrackingId.value?.let { tid ->
+        faceDetector?.unpinTrackingId(tid)
+    }
         _nameDialogTrackingId.value = null       // 追記: 対象をクリア
         _showNameDialog.value = false
     }
@@ -194,24 +201,22 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun savePersonName(trackingId: Int, name: String) {
         viewModelScope.launch {
-            try {
-                val trimmed = name.trim()
-                if (trimmed.isEmpty()) {
-                    dismissNameDialog()
-                    return@launch
-                }
-                println("Attempting to save person with trackingId: $trackingId, name: $trimmed")
-                val personId = faceDetector?.saveNewPersonWithEmbedding(trackingId, trimmed)
-                if (personId != null) {
-                    println("Successfully saved new person: $trimmed (ID: $personId)")
-                } else {
-                    println("Failed to save new person: $trimmed. personId is null.")
-                }
-            } catch (e: Exception) {
-                println("Failed to save person name: ${e.message}")
-            } finally {
-                dismissNameDialog()
+        try {
+            val trimmed = name.trim()
+            if (trimmed.isEmpty()) return@launch
+
+            println("Attempting to save person with trackingId: $trackingId, name: $trimmed")
+            val personId = faceDetector?.saveNewPersonWithEmbedding(trackingId, trimmed)
+            if (personId != null) {
+                println("Successfully saved new person: $trimmed (ID: $personId)")
+                dismissNameDialog() // 成功時のみ閉じる（アンピンされる）
+            } else {
+                println("Failed to save new person: $trimmed. personId is null.")
+                // ダイアログ維持 → ピンは維持される
             }
+        } catch (e: Exception) {
+            println("Failed to save person name: ${e.message}")
+        }
         }
     }
     

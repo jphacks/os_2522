@@ -66,6 +66,20 @@ class FaceDetector(
     private var previewHeight: Int = 0
     private var isUsingFrontCamera: Boolean = true
     
+
+     
+    // ダイアログ中など保持すべき trackingId をピン留め
+    private val pinnedTrackingIds = mutableSetOf<Int>()
+
+    fun pinTrackingId(trackingId: Int) {
+        pinnedTrackingIds.add(trackingId)
+    }
+
+    fun unpinTrackingId(trackingId: Int) {
+        pinnedTrackingIds.remove(trackingId)
+    }
+
+
     // デバッグ用：座標変換モード
     private enum class CoordinateTransformMode {
         RAW,        // 生座標（変換なし）
@@ -280,7 +294,9 @@ class FaceDetector(
                     id !in currentTrackingIds && 
                     currentTime - trackingInfoMap[id]!!.lastDetectionTime > 5000L // 5秒でタイムアウト
                 }
-                expiredTrackingIds.forEach { expiredId ->
+                expiredTrackingIds
+                .filterNot { it in pinnedTrackingIds } // 追加: ピン留めは掃除しない
+                .forEach { expiredId ->
                     trackingInfoMap.remove(expiredId)
                     lastEmbeddingExtractionTime.remove(expiredId)
                     lastExtractedEmbeddings.remove(expiredId)
@@ -468,121 +484,99 @@ class FaceDetector(
     
     /**
      * 安定した顔に対する認識処理
-     */
-    private fun processStableFaceForRecognition(
-        face: com.google.mlkit.vision.face.Face,
-        trackingId: Int,
-        trackingInfo: FaceTrackingInfo,
-        imageProxy: ImageProxy
-    ) {
-        val currentTime = System.currentTimeMillis()
-        val lastTime = lastEmbeddingExtractionTime[trackingId] ?: 0L
-        
-        // 埋め込み抽出の間隔制御（1-2秒に1回）
-        if (currentTime - lastTime < AppConstants.EMBEDDING_CAPTURE_INTERVAL_MS) {
-            return
-        }
-        
-        // 既に認識済みの場合はスキップ（追加の埋め込みは別途実装）
-        if (trackingInfo.recognizedPersonId != null) {
-            return
-        }
-        
-        lastEmbeddingExtractionTime[trackingId] = currentTime
+     */// ...existing code...
+private fun processStableFaceForRecognition(
+    face: com.google.mlkit.vision.face.Face,
+    trackingId: Int,
+    trackingInfo: FaceTrackingInfo,
+    imageProxy: ImageProxy
+) {
+    val currentTime = System.currentTimeMillis()
+    val lastTime = lastEmbeddingExtractionTime[trackingId] ?: 0L
 
-        // 認識処理中フラグを設定（レースコンディション対策）
-        trackingInfo.isRecognitionInProgress = true
+    // 抽出間隔と既知ガード
+    if (currentTime - lastTime < AppConstants.EMBEDDING_CAPTURE_INTERVAL_MS) return
+    if (trackingInfo.recognizedPersonId != null) return
 
-        // ImageProxyからBitmapを作成（imageProxyが閉じられる前に）
-        val bitmap = try {
-            imageProxyToBitmap(imageProxy)
-        } catch (e: Exception) {
-            println("❌ Failed to convert imageProxy to bitmap: ${e.message}")
-            trackingInfo.isRecognitionInProgress = false
-            return
-        }
- 
-        // 非同期で埋め込み抽出と認識処理を実行
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                // 顔サムネイルをキャッシュ
-                captureFaceThumbnail(bitmap, face)?.let { thumbnail ->
-                    cacheFaceThumbnail(trackingId, thumbnail)
-                }
+    // 認識処理中フラグとタイムスタンプ更新
+    trackingInfo.isRecognitionInProgress = true
+    lastEmbeddingExtractionTime[trackingId] = currentTime
 
-                // 埋め込み抽出
-                val embedding = embeddingExtractor!!.extractEmbedding(bitmap, face)
-                if (embedding != null) {
-                    // 最後に抽出した埋め込みを保存
-                    lastExtractedEmbeddings[trackingId] = embedding
+    // ImageProxy → Bitmap（ここで初めて bitmap を作る）
+    val bitmap = try {
+        imageProxyToBitmap(imageProxy)
+    } catch (e: Exception) {
+        println("❌ Failed to convert imageProxy to bitmap: ${e.message}")
+        trackingInfo.isRecognitionInProgress = false
+        return
+    }
 
-                    // 認識処理
-                    val recognitionResult = faceRecognizer!!.recognizeFace(embedding)
+    // 非同期で処理
+    CoroutineScope(Dispatchers.IO).launch {
+        try {
+            // 顔サムネイルをキャッシュ
+            captureFaceThumbnail(bitmap, face)?.let { thumbnail ->
+                cacheFaceThumbnail(trackingId, thumbnail)
+            }
 
-                    println("🔍 Recognition result for trackingId=$trackingId: $recognitionResult")
-
-                    // 結果をメインスレッドで処理
-                    CoroutineScope(Dispatchers.Main).launch {
-                        trackingInfo.hasAttemptedRecognition = true
-                        trackingInfo.isRecognitionInProgress = false // 処理完了
-                        when (recognitionResult) {
-                            is RecognitionResult.Recognized -> {
-                                trackingInfo.recognizedPersonId = recognitionResult.personId
-                                trackingInfo.unknownId = null
-                                println("✅ Recognized as personId=${recognitionResult.personId}, confidence=${recognitionResult.confidence}")
-                                
-                                // Phase 4: 人物情報と最新要約をキャッシュ
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    try {
-                                        // 既知人物に新しい埋め込みを追加（品質向上のため）
-                                        faceRecognizer.addEmbeddingToExistingPerson(
-                                            recognitionResult.personId,
-                                            embedding
-                                        )
-                                        
-                                        // 代表画像を保持していなければ保存
-                                        ensureProfileImageForPerson(
-                                            recognitionResult.personId,
-                                            trackingId
-                                        )
-                                        
-                                        // 人物情報と最新要約を取得してキャッシュ
-                                        val (person, lastSummary) = personRepository?.getPersonWithLatestSummary(recognitionResult.personId) ?: Pair(null, null)
-                                        
-                                        trackingInfo.cachedPersonInfo = CachedPersonInfo(
-                                            personName = person?.name,
-                                            lastSummary = lastSummary
-                                        )
-                                        
-                                    } catch (e: Exception) {
-                                        println("Failed to cache person info: ${e.message}")
-                                    }
-                                }
-                            }
-                            is RecognitionResult.Unknown -> {
-                                // Unknown状態を維持（ユーザーの命名を待つ）
-                                println("❓ Not recognized (similarity below threshold)")
-                            }
-                        }
-                    }
-                } else {
-                    // 埋め込み抽出失敗時も処理完了フラグを立てる
-                    CoroutineScope(Dispatchers.Main).launch {
-                        trackingInfo.hasAttemptedRecognition = true
-                        trackingInfo.isRecognitionInProgress = false
-                        println("⚠️ Failed to extract embedding for trackingId=$trackingId")
-                    }
-                }
-            } catch (e: Exception) {
-                println("❌ Failed to process face for recognition: ${e.message}")
-                // エラー時も処理完了フラグを立てる
+            // 埋め込み抽出（1回だけ）
+            val embedding = embeddingExtractor?.extractEmbedding(bitmap, face)
+            if (embedding == null) {
                 CoroutineScope(Dispatchers.Main).launch {
                     trackingInfo.hasAttemptedRecognition = true
                     trackingInfo.isRecognitionInProgress = false
+                    println("⚠️ Failed to extract embedding for trackingId=$trackingId")
                 }
+                return@launch
+            }
+
+            // 直近の埋め込みをキャッシュ（新規保存に使う）
+            lastExtractedEmbeddings[trackingId] = embedding
+
+            // 認識
+            val recognitionResult = faceRecognizer?.recognizeFace(embedding)
+            println("🔍 Recognition result for trackingId=$trackingId: $recognitionResult")
+
+            CoroutineScope(Dispatchers.Main).launch {
+                trackingInfo.hasAttemptedRecognition = true
+                trackingInfo.isRecognitionInProgress = false
+                when (recognitionResult) {
+                    is RecognitionResult.Recognized -> {
+                        trackingInfo.recognizedPersonId = recognitionResult.personId
+                        trackingInfo.unknownId = null
+                        println("✅ Recognized as personId=${recognitionResult.personId}, confidence=${recognitionResult.confidence}")
+
+                        // 既知人物の後処理
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                faceRecognizer?.addEmbeddingToExistingPerson(recognitionResult.personId, embedding)
+                                ensureProfileImageForPerson(recognitionResult.personId, trackingId)
+                                val (person, lastSummary) =
+                                    personRepository?.getPersonWithLatestSummary(recognitionResult.personId) ?: Pair(null, null)
+                                trackingInfo.cachedPersonInfo = CachedPersonInfo(
+                                    personName = person?.name,
+                                    lastSummary = lastSummary
+                                )
+                            } catch (e: Exception) {
+                                println("Failed to cache person info: ${e.message}")
+                            }
+                        }
+                    }
+                    is RecognitionResult.Unknown, null -> {
+                        println("❓ Not recognized (similarity below threshold)")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            println("❌ Failed to process face for recognition: ${e.message}")
+            CoroutineScope(Dispatchers.Main).launch {
+                trackingInfo.hasAttemptedRecognition = true
+                trackingInfo.isRecognitionInProgress = false
             }
         }
     }
+}
+// ...existing code...
     
     /**
      * ImageProxyからBitmapを作成（YUV_420_888 → RGB変換）
@@ -654,34 +648,31 @@ class FaceDetector(
     /**
      * 新しい人物として保存
      */
+
+
     suspend fun saveNewPersonWithEmbedding(trackingId: Int, name: String): Long? {
-        val trackingInfo = trackingInfoMap[trackingId] ?: return null
-        val embedding = lastExtractedEmbeddings[trackingId] ?: return null
-        
-        return try {
-            val personId = faceRecognizer?.saveNewPerson(name, embedding) ?: return null
-            trackingInfo.recognizedPersonId = personId
-            trackingInfo.unknownId = null
-            trackingInfo.cachedPersonInfo = CachedPersonInfo(
-                personName = name,
-                lastSummary = null
-            )
-            
-            // 保存済みの埋め込みを削除
-            lastExtractedEmbeddings.remove(trackingId)
-            lastEmbeddingExtractionTime.remove(trackingId)
-            
-            // サムネイルを保存
-            persistFaceThumbnailIfAvailable(personId, trackingId)
-            
-            // last_seen_at更新
-            personRepository?.updateLastSeenAt(personId)
-            
-            personId
-        } catch (e: Exception) {
-            println("Failed to save new person: ${e.message}")
-            null
+        val embedding = lastExtractedEmbeddings[trackingId]
+        if (embedding == null) {
+            println("saveNewPersonWithEmbedding: no embedding for trackingId=$trackingId")
+            return null
         }
+
+        // （任意）既存と近すぎる場合は新規作成を避けるロジックを入れるならここで
+
+        val personId = faceRecognizer?.saveNewPerson(name, embedding)
+        if (personId == null) {
+            println("saveNewPersonWithEmbedding: repository returned null")
+            return null
+        }
+        recognizeFace(trackingId, personId)
+
+        // 代表画像の保存（任意）
+        CoroutineScope(Dispatchers.IO).launch {
+            ensureProfileImageForPerson(personId, trackingId)
+        }
+
+        println("saveNewPersonWithEmbedding: created personId=$personId for trackingId=$trackingId")
+        return personId
     }
     
     /**
