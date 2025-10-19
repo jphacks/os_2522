@@ -51,6 +51,11 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     
     // Phase 4: 録音セッション管理
     private var currentRecordingSession: RecordingSession? = null
+
+
+    // ダイアログで対象にする trackingId（null なら非表示）
+    private val _nameDialogTrackingId = MutableStateFlow<Int?>(null)
+    val nameDialogTrackingId: StateFlow<Int?> = _nameDialogTrackingId.asStateFlow()
     
     init {
         // Phase 2&3コンポーネントの初期化
@@ -156,16 +161,31 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
      * 登録ボタンがタップされた時の処理
      */
     fun onRegisterButtonTapped() {
-        val stableFace = getStableUnknownFace()
-        if (stableFace != null) {
-            _showNameDialog.value = true
-        }
+        val results = detectionResults.value
+        val current = _nameDialogTrackingId.value
+        val unknowns = results.filter { it.recognitionInfo?.isRecognized != true }
+
+        // 既に選んだ顔がまだ居ればそれを優先 → 安定している未認識 → それでも無ければ最初の未認識
+        val target = unknowns.firstOrNull { it.trackingId == current }
+            ?: unknowns.firstOrNull { it.isStable }
+            ?: unknowns.firstOrNull()
+
+        _nameDialogTrackingId.value = target?.trackingId
+        _showNameDialog.value = target != null   // ダイアログ表示フラグも同期
+
+        target?.trackingId?.let { tid ->
+        faceDetector?.pinTrackingId(tid)
+    }
     }
 
     /**
      * 名前入力ダイアログを閉じる
      */
     fun dismissNameDialog() {
+          _nameDialogTrackingId.value?.let { tid ->
+        faceDetector?.unpinTrackingId(tid)
+    }
+        _nameDialogTrackingId.value = null       // 追記: 対象をクリア
         _showNameDialog.value = false
     }
 
@@ -179,32 +199,24 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * 新しい人物として名前を保存（Phase 2完全実装）
      */
-    fun savePersonName(name: String) {
+    fun savePersonName(trackingId: Int, name: String) {
         viewModelScope.launch {
-            try {
-                // 最も安定した未認識の顔を取得
-                val stableFace = getStableUnknownFace()
-                val trackingId = stableFace?.trackingId
+        try {
+            val trimmed = name.trim()
+            if (trimmed.isEmpty()) return@launch
 
-                if (trackingId != null) {
-                    println("Attempting to save person with trackingId: $trackingId, name: $name")
-                    // 顔検出器に新しい人物として保存を依頼
-                    val personId = faceDetector?.saveNewPersonWithEmbedding(trackingId, name)
-
-                    if (personId != null) {
-                        println("Successfully saved new person: $name (ID: $personId)")
-                    } else {
-                        println("Failed to save new person: $name. personId is null.")
-                    }
-                } else {
-                    println("No stable unknown face found to save")
-                }
-
-                dismissNameDialog()
-            } catch (e: Exception) {
-                println("Failed to save person name: ${e.message}")
-                dismissNameDialog()
+            println("Attempting to save person with trackingId: $trackingId, name: $trimmed")
+            val personId = faceDetector?.saveNewPersonWithEmbedding(trackingId, trimmed)
+            if (personId != null) {
+                println("Successfully saved new person: $trimmed (ID: $personId)")
+                dismissNameDialog() // 成功時のみ閉じる（アンピンされる）
+            } else {
+                println("Failed to save new person: $trimmed. personId is null.")
+                // ダイアログ維持 → ピンは維持される
             }
+        } catch (e: Exception) {
+            println("Failed to save person name: ${e.message}")
+        }
         }
     }
     
