@@ -1,5 +1,6 @@
 package com.example.daredakke
 
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,6 +12,9 @@ import com.example.daredakke.ui.theme.daredakkeTheme
 import com.example.daredakke.ui.navigation.AppNavigation
 import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+// 追加
+import android.content.Context
+import android.webkit.WebView
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
